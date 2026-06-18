@@ -14,7 +14,7 @@
 | 7 | 버전 전략 7종 | ✅ | `internal/calc` — Configured/Tagged/MergeMessage/VersionInBranchName/TrackRelease/Fallback/Mainline |
 | 8 | 배포 모드 3종 | ✅ | Manual/ContinuousDelivery/ContinuousDeployment |
 | 9 | 출력 JSON/dot-env/build-server/`-v`/`--format` | ✅ | `internal/output` + CLI. 검증 완료 |
-| 10 | 로그 파일 `--log`/`-l <FILE>`(타임스탬프 append) | ❌ | **미구현** — 현재 로그는 stderr 전용 |
+| 10 | 로그 파일 `--log`/`-l <FILE>`(타임스탬프 append) | ✅ | `internal/cli` — 파일은 타임스탬프 append, `console`/미지정은 stderr(무타임스탬프), stdout 은 결과 전용 유지 |
 | 11 | 빌드 에이전트 15종 통합 | ✅ | `internal/buildagent` — 28개 골든 라인 일치 |
 | 12 | 파일 출력: AssemblyInfo/프로젝트/Wix | ⚠️ | `internal/output/files.go`. 프로젝트 파일은 원본의 XML 이벤트 파서 대신 **포맷 보존 타깃 정규식** 사용(결과 동일, 주석·속성·들여쓰기 보존) |
 | 13 | 패키지 매니페스트(package.json/Cargo.toml/pyproject.toml) | ⚠️ | 동일. TOML 은 toml_edit 대신 줄 단위 포맷 보존 치환(주석 보존) |
@@ -34,10 +34,9 @@
 ## 정리: 미구현/차이 항목
 
 1. **TUI (`--tui`)** — 미구현. Bubble Tea 등으로 별도 포팅 필요.
-2. **로그 파일 `--log`/`-l <FILE>`** — 미구현. slog 핸들러를 파일(append, 타임스탬프)로 전환하는 작업.
-3. **프로젝트/패키지 파일 갱신 방식 차이(⚠️)** — 기능·결과는 동일하나 구현이 정규식 기반(원본은 XML/TOML 파서). 포맷 보존은 유지됨.
+2. **프로젝트/패키지 파일 갱신 방식 차이(⚠️)** — 기능·결과는 동일하나 구현이 정규식 기반(원본은 XML/TOML 파서). 포맷 보존은 유지됨.
 
-(credential helper / OS 키링은 구현 완료 — 16-a 참고.)
+(credential helper(16-a)와 로그 파일(10)은 구현 완료.)
 
 핵심 버전 계산·출력·CI 통합·훅·원격·캐시·파일 갱신은 모두 구현·검증되었고, 남은 것은
 부수 기능 3종(TUI, 로그 파일, 자격증명 헬퍼)이다.

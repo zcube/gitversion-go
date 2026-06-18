@@ -37,6 +37,7 @@ type options struct {
 	lang           string
 	verbosity      string
 	diag           bool
+	logFile        string
 	execHook       string
 	execVersion    string
 	dryRun         bool
@@ -90,6 +91,7 @@ func NewRootCommand(version string) *cobra.Command {
 	f.StringVar(&o.lang, "lang", "", "Output language (en/ko/ja/zh)")
 	f.StringVar(&o.verbosity, "verbosity", "normal", "Log verbosity: quiet, minimal, normal, verbose, diagnostic")
 	f.BoolVar(&o.diag, "diag", false, "Diagnostic mode (debug logging)")
+	f.StringVarP(&o.logFile, "log", "l", "", "Append log output to FILE (timestamped), or 'console' for stderr")
 	f.StringVar(&o.execHook, "exec", "", "Extra prepare hook command to run")
 	f.StringVar(&o.execVersion, "exec-version", "", "Version hook: command whose stdout overrides next-version")
 	f.BoolVar(&o.dryRun, "dry-run", false, "Print hook commands without executing them")
@@ -114,7 +116,22 @@ func NewRootCommand(version string) *cobra.Command {
 	return cmd
 }
 
-func setupLogging(verbosity string, diag bool) {
+// dropTime 은 slog 출력에서 time 속성을 제거한다(콘솔/stderr 용, 원본의 무타임스탬프).
+func dropTime(_ []string, a slog.Attr) slog.Attr {
+	if a.Key == slog.TimeKey {
+		return slog.Attr{}
+	}
+	return a
+}
+
+// setupLogging 은 verbosity/diag 로 레벨을 정하고 로그 대상을 설정한다.
+//
+//   - logFile == ""      : stderr(타임스탬프 없음)
+//   - logFile == "console": stderr(타임스탬프 없음)
+//   - 그 외              : 파일에 append(타임스탬프 포함)
+//
+// stdout 은 항상 버전 결과 전용으로 비워 둔다. 반환값은 cleanup(파일 close).
+func setupLogging(verbosity string, diag bool, logFile string) (func(), error) {
 	level := slog.LevelInfo
 	switch strings.ToLower(verbosity) {
 	case "quiet":
@@ -129,14 +146,32 @@ func setupLogging(verbosity string, diag bool) {
 	if diag {
 		level = slog.LevelDebug
 	}
-	// stdout 은 버전 결과 전용으로 비워 두고, 로그는 stderr 로.
-	h := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: level})
+
+	cleanup := func() {}
+	var h slog.Handler
+	if logFile != "" && !strings.EqualFold(logFile, "console") {
+		f, err := os.OpenFile(logFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
+		if err != nil {
+			return cleanup, fmt.Errorf("로그 파일 열기 실패 %s: %w", logFile, err)
+		}
+		cleanup = func() { _ = f.Close() }
+		// 파일 로그에는 타임스탬프를 남긴다(원본 GitVersion 로그 파일과 동일).
+		h = slog.NewTextHandler(f, &slog.HandlerOptions{Level: level})
+	} else {
+		// stderr/console: 타임스탬프 없이.
+		h = slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: level, ReplaceAttr: dropTime})
+	}
 	slog.SetDefault(slog.New(h))
+	return cleanup, nil
 }
 
 func run(o *options, path string) error {
 	i18n.Init(o.lang)
-	setupLogging(o.verbosity, o.diag)
+	cleanup, err := setupLogging(o.verbosity, o.diag, o.logFile)
+	if err != nil {
+		return err
+	}
+	defer cleanup()
 
 	// --url 이 주어지면 원격 저장소를 동적으로 clone 해 그 경로를 대상으로 사용.
 	target := path

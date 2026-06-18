@@ -108,6 +108,7 @@ backtracking, 미참여 그룹 구분)을 보장한다.
 | version/side-effect 훅 | `--exec-version <cmd>`, `--exec <cmd>`, `--dry-run` (+ 설정 `exec:`) |
 | 원격 클론 | `--url <repo> --branch <b> [-u -p -c --dynamic-repo-location]` (https 는 `-u`/`-p` 미지정 시 git credential helper/OS 키링 자동 사용) |
 | 디스크 캐시 | 기본 활성, `--nocache` 로 우회 |
+| 로그 파일 | `-l`/`--log <FILE>`(타임스탬프 append) 또는 `--log console`(stderr). stdout 은 결과 전용 |
 | 파일 갱신 | `--updateassemblyinfo [--ensureassemblyinfo]`, `--updateprojectfiles`, `--updatepackagefiles`, `--updatewixversionfile` |
 
 ## 미포팅 범위
