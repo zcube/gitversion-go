@@ -65,26 +65,36 @@ func Load(explicitPath, workDir, repoRoot string) (*GitVersionConfiguration, err
 	if err != nil {
 		return nil, fmt.Errorf("설정 파일을 읽지 못했습니다 %s: %w", path, err)
 	}
-	var overrides GitVersionConfiguration
-	if err := yaml.Unmarshal(text, &overrides); err != nil {
-		return nil, fmt.Errorf("YAML 파싱 실패 %s: %w", path, err)
-	}
+	return ParseYAML(text, filepath.Dir(path))
+}
 
-	configDir := filepath.Dir(path)
+// ParseYAML 은 인라인 설정 YAML 을 워크플로 기본값과 병합해 effective 설정을 만든다.
+// baseDir 은 `workflow:` 가 상대 파일 경로일 때의 기준 디렉터리(없으면 "").
+func ParseYAML(data []byte, baseDir string) (*GitVersionConfiguration, error) {
+	var overrides GitVersionConfiguration
+	if err := yaml.Unmarshal(data, &overrides); err != nil {
+		return nil, fmt.Errorf("YAML 파싱 실패: %w", err)
+	}
+	return buildFrom(&overrides, baseDir)
+}
+
+// buildFrom 은 override 설정을 워크플로 기본값 위에 병합/검증한다.
+func buildFrom(overrides *GitVersionConfiguration, configDir string) (*GitVersionConfiguration, error) {
 	var base *GitVersionConfiguration
 	if overrides.Workflow != nil && isWorkflowFilePath(*overrides.Workflow) {
-		base, err = loadWorkflowFile(*overrides.Workflow, configDir)
+		b, err := loadWorkflowFile(*overrides.Workflow, configDir)
 		if err != nil {
 			return nil, err
 		}
-		ensureMaps(base)
+		ensureMaps(b)
+		base = b
 	} else {
 		base = ForWorkflow(overrides.Workflow)
 	}
-	Merge(base, &overrides)
+	Merge(base, overrides)
 	ApplySourceBranchMappings(base)
 	if err := Validate(base); err != nil {
-		return nil, fmt.Errorf("설정 검증 실패 %s: %w", path, err)
+		return nil, fmt.Errorf("설정 검증 실패: %w", err)
 	}
 	return base, nil
 }

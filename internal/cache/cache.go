@@ -21,6 +21,16 @@ import (
 // 원본 GitVersionCacheKeyFactory 의 4개 구성요소에 대응한다. GitVersion 자체 버전은
 // 키에 포함하지 않는다(개발 중에는 --nocache 사용).
 func ComputeKey(repo *git.GitRepo, configPath string, overrides []string) string {
+	var content []byte
+	if configPath != "" {
+		content, _ = os.ReadFile(configPath)
+	}
+	return ComputeKeyContent(repo, content, overrides)
+}
+
+// ComputeKeyContent 는 설정 파일 경로 대신 설정 내용(바이트)을 직접 받아 키를 만든다.
+// 인라인/객체 설정으로 계산할 때 사용한다.
+func ComputeKeyContent(repo *git.GitRepo, configContent []byte, overrides []string) string {
 	h := sha1.New()
 
 	for _, line := range repo.RefsSnapshot() {
@@ -33,11 +43,7 @@ func ComputeKey(repo *git.GitRepo, configPath string, overrides []string) string
 		h.Write([]byte(head.Sha))
 	}
 	h.Write([]byte("--config--"))
-	if configPath != "" {
-		if content, err := os.ReadFile(configPath); err == nil {
-			h.Write(content)
-		}
-	}
+	h.Write(configContent)
 	h.Write([]byte("--override--"))
 	for _, o := range overrides {
 		h.Write([]byte(o))

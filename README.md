@@ -45,7 +45,18 @@ v, err = gitversion.Calculate(gitversion.Options{
     NoCache:   true,
 })
 
-// 3) 출력 헬퍼
+// 3) 설정 직접 입력 (우선순위 Config > ConfigYAML > ConfigPath/자동탐색)
+//    a. 인라인 YAML(GitVersion.yml 과 동일 형식)
+v, _ = gitversion.Calculate(gitversion.Options{
+    Path:       ".",
+    ConfigYAML: []byte("workflow: GitHubFlow/v1\nnext-version: 2.0.0\n"),
+})
+//    b. 설정 객체(프리셋에서 만들어 조정)
+cfg := gitversion.DefaultConfig("GitFlow")     // 또는 ParseConfig([]byte(...))
+nv := "3.0.0"; cfg.NextVersion = &nv
+v, _ = gitversion.Calculate(gitversion.Options{Path: ".", Config: cfg})
+
+// 4) 출력 헬퍼
 m := v.ToMap()                         // map[string]string (모든 변수)
 s, _ := v.ShowVariable("MajorMinorPatch")
 j, _ := v.ToJSON()                     // GitVersion 호환 JSON
