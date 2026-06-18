@@ -1,0 +1,5 @@
+/gitversion
+/gv
+/dist/
+*.out
+*.test
