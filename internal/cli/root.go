@@ -16,6 +16,7 @@ import (
 	"github.com/zcube/go-gitversion/internal/buildagent"
 	"github.com/zcube/go-gitversion/internal/calc"
 	"github.com/zcube/go-gitversion/internal/config"
+	"github.com/zcube/go-gitversion/internal/exec"
 	"github.com/zcube/go-gitversion/internal/git"
 	"github.com/zcube/go-gitversion/internal/i18n"
 	"github.com/zcube/go-gitversion/internal/output"
@@ -34,6 +35,9 @@ type options struct {
 	lang           string
 	verbosity      string
 	diag           bool
+	execHook       string
+	execVersion    string
+	dryRun         bool
 	// 원본 CLI 호환용 no-op 플래그.
 	nofetch, nonormalize, nocache, allowshallow bool
 }
@@ -70,6 +74,9 @@ func NewRootCommand(version string) *cobra.Command {
 	f.StringVar(&o.lang, "lang", "", "Output language (en/ko/ja/zh)")
 	f.StringVar(&o.verbosity, "verbosity", "normal", "Log verbosity: quiet, minimal, normal, verbose, diagnostic")
 	f.BoolVar(&o.diag, "diag", false, "Diagnostic mode (debug logging)")
+	f.StringVar(&o.execHook, "exec", "", "Extra prepare hook command to run")
+	f.StringVar(&o.execVersion, "exec-version", "", "Version hook: command whose stdout overrides next-version")
+	f.BoolVar(&o.dryRun, "dry-run", false, "Print hook commands without executing them")
 	f.BoolVar(&o.nofetch, "nofetch", false, "Disable fetch (no-op)")
 	f.BoolVar(&o.nonormalize, "nonormalize", false, "Disable normalization (no-op)")
 	f.BoolVar(&o.nocache, "nocache", false, "Disable disk cache (no-op)")
@@ -144,6 +151,33 @@ func run(o *options, path string) error {
 	vars, err := calc.Calculate(repo, cfg, branchOverride)
 	if err != nil {
 		return fmt.Errorf("%s: %w", i18n.T("error.calc_failed", nil), err)
+	}
+
+	// version 훅: 외부 명령 출력으로 next-version 을 덮어쓰고 재계산.
+	versionCmd := o.execVersion
+	if versionCmd == "" {
+		versionCmd = cfg.Exec["version"]
+	}
+	if versionCmd != "" {
+		newVer, ok, err := exec.RunVersionHook(versionCmd, vars, workdir, o.dryRun)
+		if err != nil {
+			return err
+		}
+		if ok {
+			slog.Info("version 훅이 버전을 수정: " + newVer)
+			cfg.NextVersion = &newVer
+			vars, err = calc.Calculate(repo, cfg, branchOverride)
+			if err != nil {
+				return fmt.Errorf("%s: %w", i18n.T("error.calc_failed", nil), err)
+			}
+		}
+	}
+
+	// side-effect 훅(verify/prepare/publish/success).
+	if len(cfg.Exec) > 0 || o.execHook != "" {
+		if err := exec.RunHooks(cfg.Exec, o.execHook, vars, workdir, o.dryRun); err != nil {
+			return err
+		}
 	}
 
 	if o.showVariable != "" {
