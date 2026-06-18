@@ -13,6 +13,7 @@ import (
 	"github.com/goccy/go-yaml"
 	"github.com/spf13/cobra"
 
+	"github.com/zcube/go-gitversion/internal/buildagent"
 	"github.com/zcube/go-gitversion/internal/calc"
 	"github.com/zcube/go-gitversion/internal/config"
 	"github.com/zcube/go-gitversion/internal/git"
@@ -160,14 +161,14 @@ func run(o *options, path string) error {
 		return emit(o, out)
 	}
 
-	rendered, err := render(o, vars)
+	rendered, err := render(o, cfg, vars)
 	if err != nil {
 		return err
 	}
 	return emit(o, rendered)
 }
 
-func render(o *options, vars *output.VersionVariables) (string, error) {
+func render(o *options, cfg *config.GitVersionConfiguration, vars *output.VersionVariables) (string, error) {
 	var parts []string
 	for _, fmtName := range o.outputs {
 		switch strings.ToLower(strings.TrimSpace(fmtName)) {
@@ -180,7 +181,13 @@ func render(o *options, vars *output.VersionVariables) (string, error) {
 		case "dot-env", "dotenv":
 			parts = append(parts, strings.TrimRight(vars.ToDotEnv(), "\n"))
 		case "build-server", "buildserver":
-			parts = append(parts, strings.TrimRight(vars.ToBuildServerEnv(), "\n"))
+			if agent := buildagent.Detect(); agent != nil {
+				slog.Info("build agent detected: " + agent.Name())
+				ubn := cfg == nil || cfg.UpdateBuildNumber == nil || *cfg.UpdateBuildNumber
+				parts = append(parts, strings.Join(agent.WriteIntegration(vars, ubn), "\n"))
+			} else {
+				parts = append(parts, strings.TrimRight(vars.ToBuildServerEnv(), "\n"))
+			}
 		default:
 			return "", fmt.Errorf("알 수 없는 출력 형식: %s", fmtName)
 		}
