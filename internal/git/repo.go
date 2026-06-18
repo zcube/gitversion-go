@@ -6,7 +6,10 @@ package git
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/go-git/go-git/v5"
@@ -35,6 +38,7 @@ type TagInfo struct {
 type GitRepo struct {
 	repo    *git.Repository
 	workdir string
+	gitDir  string
 }
 
 // Discover 는 path 또는 상위에서 .git 을 탐색해 연다.
@@ -47,11 +51,79 @@ func Discover(path string) (*GitRepo, error) {
 	if wt, err := repo.Worktree(); err == nil {
 		wd = wt.Filesystem.Root()
 	}
-	return &GitRepo{repo: repo, workdir: wd}, nil
+	return &GitRepo{repo: repo, workdir: wd, gitDir: resolveGitDir(wd)}, nil
+}
+
+// resolveGitDir 은 작업 트리 루트에서 .git 디렉터리 경로를 해석한다(.git 파일이면
+// `gitdir:` 포인터를 따른다).
+func resolveGitDir(workdir string) string {
+	if workdir == "" {
+		return ""
+	}
+	dotgit := filepath.Join(workdir, ".git")
+	info, err := os.Stat(dotgit)
+	if err != nil {
+		return dotgit
+	}
+	if info.IsDir() {
+		return dotgit
+	}
+	// .git 파일: "gitdir: <path>" 형태.
+	if data, err := os.ReadFile(dotgit); err == nil {
+		line := strings.TrimSpace(string(data))
+		if p, ok := strings.CutPrefix(line, "gitdir:"); ok {
+			p = strings.TrimSpace(p)
+			if !filepath.IsAbs(p) {
+				p = filepath.Join(workdir, p)
+			}
+			return p
+		}
+	}
+	return dotgit
 }
 
 // Workdir 는 저장소 작업 트리 루트.
 func (g *GitRepo) Workdir() string { return g.workdir }
+
+// GitDir 은 .git 디렉터리 경로(캐시 위치 계산용).
+func (g *GitRepo) GitDir() string { return g.gitDir }
+
+// HeadRefName 은 HEAD 의 canonical ref 이름(detached 면 short sha).
+func (g *GitRepo) HeadRefName() string {
+	ref, err := g.repo.Head()
+	if err != nil {
+		return "HEAD"
+	}
+	if ref.Name().IsBranch() {
+		return ref.Name().String()
+	}
+	if c, err := g.repo.CommitObject(ref.Hash()); err == nil {
+		return shortSha(c.Hash.String())
+	}
+	return "HEAD"
+}
+
+// RefsSnapshot 은 모든 ref 의 "이름 target_sha" 목록(정렬). 캐시 키용.
+func (g *GitRepo) RefsSnapshot() []string {
+	var out []string
+	iter, err := g.repo.References()
+	if err != nil {
+		return out
+	}
+	_ = iter.ForEach(func(r *plumbing.Reference) error {
+		name := r.Name().String()
+		target := ""
+		if c, ok := g.peelToCommit(r.Hash()); ok {
+			target = c.Hash.String()
+		} else {
+			target = r.Hash().String()
+		}
+		out = append(out, name+" "+target)
+		return nil
+	})
+	sort.Strings(out)
+	return out
+}
 
 func shortSha(sha string) string {
 	if len(sha) > 7 {

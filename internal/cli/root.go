@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/zcube/go-gitversion/internal/buildagent"
+	"github.com/zcube/go-gitversion/internal/cache"
 	"github.com/zcube/go-gitversion/internal/calc"
 	"github.com/zcube/go-gitversion/internal/config"
 	"github.com/zcube/go-gitversion/internal/exec"
@@ -173,9 +174,34 @@ func run(o *options, path string) error {
 	if o.branch != "" {
 		branchOverride = &o.branch
 	}
-	vars, err := calc.Calculate(repo, cfg, branchOverride)
-	if err != nil {
-		return fmt.Errorf("%s: %w", i18n.T("error.calc_failed", nil), err)
+
+	// 디스크 캐시: refs/HEAD/설정/override 해시 키. nocache 면 우회.
+	keyInputs := append([]string{}, o.overrideConfig...)
+	if o.branch != "" {
+		keyInputs = append(keyInputs, "branch="+o.branch)
+	}
+	cfgPath := o.configPath
+	if cfgPath == "" {
+		cfgPath = config.Locate(workdir, workdir)
+	}
+	var cacheKey string
+	if !o.nocache {
+		cacheKey = cache.ComputeKey(repo, cfgPath, keyInputs)
+	}
+
+	var vars *output.VersionVariables
+	if cacheKey != "" {
+		vars = cache.Load(repo, cacheKey)
+	}
+	if vars == nil {
+		v, err := calc.Calculate(repo, cfg, branchOverride)
+		if err != nil {
+			return fmt.Errorf("%s: %w", i18n.T("error.calc_failed", nil), err)
+		}
+		vars = v
+		if cacheKey != "" {
+			cache.Store(repo, cacheKey, vars)
+		}
 	}
 
 	// version 훅: 외부 명령 출력으로 next-version 을 덮어쓰고 재계산.

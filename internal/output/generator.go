@@ -67,6 +67,30 @@ func (v *VersionVariables) ToJSON() (string, error) {
 	return string(b), nil
 }
 
+// FromJSON 은 JSON 을 VersionVariables 로 역직렬화한다(디스크 캐시 로드용).
+func FromJSON(data []byte) (*VersionVariables, error) {
+	var m jsonModel
+	if err := json.Unmarshal(data, &m); err != nil {
+		return nil, err
+	}
+	v := &VersionVariables{
+		Major: m.Major, Minor: m.Minor, Patch: m.Patch,
+		PreReleaseTag: m.PreReleaseTag, PreReleaseTagWithDash: m.PreReleaseTagWithDash,
+		PreReleaseLabel: m.PreReleaseLabel, PreReleaseLabelWithDash: m.PreReleaseLabelWithDash,
+		PreReleaseNumber: m.PreReleaseNumber, WeightedPreReleaseNumber: m.WeightedPreReleaseNumber,
+		BuildMetaData: m.BuildMetaData, FullBuildMetaData: m.FullBuildMetaData,
+		MajorMinorPatch: m.MajorMinorPatch, SemVer: m.SemVer, FullSemVer: m.FullSemVer,
+		AssemblySemVer: m.AssemblySemVer, AssemblySemFileVer: m.AssemblySemFileVer,
+		InformationalVersion: m.InformationalVersion, BranchName: m.BranchName,
+		EscapedBranchName: m.EscapedBranchName, Sha: m.Sha, ShortSha: m.ShortSha,
+		VersionSourceDistance: m.VersionSourceDistance, VersionSourceIncrement: m.VersionSourceIncrement,
+		VersionSourceSemVer: m.VersionSourceSemVer, VersionSourceSha: m.VersionSourceSha,
+		CommitsSinceVersionSource: m.CommitsSinceVersionSource, CommitDate: m.CommitDate,
+		UncommittedChanges: m.UncommittedChanges,
+	}
+	return v, nil
+}
+
 // ToDotEnv 는 dotenv 출력: `GitVersion_Major='1'` 형식.
 func (v *VersionVariables) ToDotEnv() string {
 	m := v.ToMap()
