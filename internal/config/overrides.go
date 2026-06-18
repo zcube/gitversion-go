@@ -1,16 +1,14 @@
-package cli
+package config
 
 import (
 	"log/slog"
 	"strconv"
 	"strings"
-
-	"github.com/zcube/go-gitversion/internal/config"
 )
 
-// applyOverrides 는 `key=value` 인라인 오버라이드를 설정에 적용한다.
-// 원본 cli::apply_overrides 대응.
-func applyOverrides(cfg *config.GitVersionConfiguration, overrides []string) error {
+// ApplyOverrides 는 `key=value` 인라인 오버라이드를 설정에 적용한다.
+// 원본 cli::apply_overrides 대응. 잘못된 항목/지원하지 않는 키는 경고 후 무시한다.
+func ApplyOverrides(cfg *GitVersionConfiguration, overrides []string) {
 	for _, raw := range overrides {
 		key, value, ok := strings.Cut(raw, "=")
 		if !ok {
@@ -53,44 +51,43 @@ func applyOverrides(cfg *config.GitVersionConfiguration, overrides []string) err
 				cfg.Mode = &m
 			}
 		case "semantic-version-format":
-			var f config.SemanticVersionFormat
+			var f SemanticVersionFormat
 			if strings.ToLower(value) == "loose" {
-				f = config.FormatLoose
+				f = FormatLoose
 			} else {
-				f = config.FormatStrict
+				f = FormatStrict
 			}
 			cfg.SemanticVersionFormat = &f
 		default:
 			slog.Warn("지원하지 않는 overrideconfig 키(무시): " + key)
 		}
 	}
-	return nil
 }
 
-func parseIncrementName(v string) (config.IncrementStrategy, bool) {
+func parseIncrementName(v string) (IncrementStrategy, bool) {
 	switch strings.ToLower(v) {
 	case "major":
-		return config.IncrementMajor, true
+		return IncrementMajor, true
 	case "minor":
-		return config.IncrementMinor, true
+		return IncrementMinor, true
 	case "patch":
-		return config.IncrementPatch, true
+		return IncrementPatch, true
 	case "none":
-		return config.IncrementNone, true
+		return IncrementNone, true
 	case "inherit":
-		return config.IncrementInherit, true
+		return IncrementInherit, true
 	}
 	return 0, false
 }
 
-func parseModeName(v string) (config.DeploymentMode, bool) {
+func parseModeName(v string) (DeploymentMode, bool) {
 	switch strings.ToLower(v) {
 	case "continuousdelivery":
-		return config.ContinuousDelivery, true
+		return ContinuousDelivery, true
 	case "continuousdeployment":
-		return config.ContinuousDeployment, true
+		return ContinuousDeployment, true
 	case "manualdeployment":
-		return config.ManualDeployment, true
+		return ManualDeployment, true
 	}
 	return 0, false
 }

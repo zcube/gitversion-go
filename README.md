@@ -24,6 +24,35 @@ go build -o gitversion ./cmd/gitversion
 ./gitversion --lang ko         # 메시지 로케일(en/ko/ja/zh)
 ```
 
+## 라이브러리로 사용 (외부 패키지)
+
+CLI 외에 **공개 패키지 `github.com/zcube/go-gitversion/gitversion`** 로도 임포트해 쓸 수 있다.
+
+```go
+import "github.com/zcube/go-gitversion/gitversion"
+
+// 1) 가장 간단: 경로만
+v, err := gitversion.Compute(".")
+if err != nil { log.Fatal(err) }
+fmt.Println(v.FullSemVer)             // 예: "1.2.3-beta.1+5"
+fmt.Println(v.SemVer, v.Major, v.Sha)
+
+// 2) 옵션 지정(브랜치/오버라이드/캐시)
+v, err = gitversion.Calculate(gitversion.Options{
+    Path:      "/path/to/repo",
+    Branch:    "release/2.0.0",        // 선택
+    Overrides: []string{"next-version=2.0.0"},
+    NoCache:   true,
+})
+
+// 3) 출력 헬퍼
+m := v.ToMap()                         // map[string]string (모든 변수)
+s, _ := v.ShowVariable("MajorMinorPatch")
+j, _ := v.ToJSON()                     // GitVersion 호환 JSON
+```
+
+`internal/*` 은 외부에서 임포트할 수 없고, 공개 API 는 `gitversion` 패키지 하나로 모았다.
+
 ## 사용 라이브러리
 
 | 목적 | 라이브러리 |

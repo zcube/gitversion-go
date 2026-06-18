@@ -174,9 +174,7 @@ func run(o *options, path string) error {
 	if err != nil {
 		return err
 	}
-	if err := applyOverrides(cfg, o.overrideConfig); err != nil {
-		return err
-	}
+	config.ApplyOverrides(cfg, o.overrideConfig)
 
 	if o.showConfig {
 		b, err := yaml.Marshal(cfg)
