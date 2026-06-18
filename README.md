@@ -106,6 +106,12 @@ j, _ := v.ToJSON()                     // GitVersion 호환 JSON
 | `src/cache.rs` | `internal/cache` | 디스크 캐시(SHA1 키, .git/gitversion_cache) |
 | `src/output/files.rs` | `internal/output/files.go` | AssemblyInfo/프로젝트/패키지/Wix 파일 갱신 |
 | (신규) | `internal/rx` | regexp2 래퍼(.NET named capture 호환) |
+| (신규) | `internal/workflow` | 워크플로 공통 인터페이스(`Calculator`/`Context`) |
+| (신규) | `internal/semrel` | semantic-release 호환 계산기(`workflow.Calculator` 구현) |
+| (신규) | `internal/varutil` | 공통 출력 유틸(날짜 포맷/AssemblyVersion/브랜치 escape) |
+
+> 계산 진입점 `calc.Calculate` 는 공통 컨텍스트(HEAD/브랜치/effective 설정)를 해석한 뒤
+> 워크플로에 맞는 `workflow.Calculator`(GitVersion 계열 또는 SemanticRelease)를 선택해 위임한다.
 
 ## 정규식 호환성
 

@@ -9,7 +9,17 @@ import (
 	"github.com/zcube/gitversion-go/internal/git"
 	"github.com/zcube/gitversion-go/internal/output"
 	"github.com/zcube/gitversion-go/internal/rx"
+	"github.com/zcube/gitversion-go/internal/varutil"
+	"github.com/zcube/gitversion-go/internal/workflow"
 )
+
+// Calculator 는 SemanticRelease 워크플로 계산기(workflow.Calculator 구현).
+type Calculator struct{}
+
+// Calculate 는 공통 컨텍스트로 출력 변수를 만든다.
+func (Calculator) Calculate(ctx *workflow.Context) (*output.VersionVariables, error) {
+	return CalculateEff(ctx.Repo, ctx.Eff, ctx.Branch)
+}
 
 // DefaultPrereleaseBranches: semantic-release 기본 프리릴리스 브랜치 → 채널.
 var DefaultPrereleaseBranches = map[string]string{"beta": "beta", "alpha": "alpha"}
@@ -194,11 +204,11 @@ func CalculateEff(repo *git.GitRepo, eff *config.EffectiveConfiguration, branch 
 		weighted = &w
 	}
 
-	layout := dotnetDateToGoLayout(eff.CommitDateFormat)
-	escaped := rx.MustCompile(`[^a-zA-Z0-9-]`).ReplaceAll(branch, "-")
-	preNum := 0
+	layout := varutil.DotNetDateToGoLayout(eff.CommitDateFormat)
+	escaped := varutil.EscapeBranchName(branch)
+	var preNum int64
 	if preNumber != nil {
-		preNum = int(*preNumber)
+		preNum = *preNumber
 	}
 
 	return &output.VersionVariables{
@@ -214,8 +224,8 @@ func CalculateEff(repo *git.GitRepo, eff *config.EffectiveConfiguration, branch 
 		MajorMinorPatch:          fmt.Sprintf("%d.%d.%d", parsed.major, parsed.minor, parsed.patch),
 		SemVer:                   verStr,
 		FullSemVer:               verStr,
-		AssemblySemVer:           assemblyVersion(parsed.major, parsed.minor, parsed.patch, preNum, eff.AssemblyVersioningScheme),
-		AssemblySemFileVer:       assemblyVersion(parsed.major, parsed.minor, parsed.patch, preNum, eff.AssemblyFileVersioningScheme),
+		AssemblySemVer:           varutil.AssemblyVersion(int64(parsed.major), int64(parsed.minor), int64(parsed.patch), preNum, eff.AssemblyVersioningScheme),
+		AssemblySemFileVer:       varutil.AssemblyVersion(int64(parsed.major), int64(parsed.minor), int64(parsed.patch), preNum, eff.AssemblyFileVersioningScheme),
 		InformationalVersion:     verStr,
 		BranchName:               branch,
 		EscapedBranchName:        escaped,
@@ -224,33 +234,4 @@ func CalculateEff(repo *git.GitRepo, eff *config.EffectiveConfiguration, branch 
 		CommitDate:               head.When.UTC().Format(layout),
 		VersionSourceSemVer:      r.LastVersion,
 	}, nil
-}
-
-func assemblyVersion(major, minor, patch, pre int, scheme config.VersioningScheme) string {
-	switch scheme {
-	case config.SchemeMajor:
-		return fmt.Sprintf("%d.0.0.0", major)
-	case config.SchemeMajorMinor:
-		return fmt.Sprintf("%d.%d.0.0", major, minor)
-	case config.SchemeMajorMinorPatch:
-		return fmt.Sprintf("%d.%d.%d.0", major, minor, patch)
-	case config.SchemeMajorMinorPatchTag:
-		return fmt.Sprintf("%d.%d.%d.%d", major, minor, patch, pre)
-	default:
-		return ""
-	}
-}
-
-func dotnetDateToGoLayout(format string) string {
-	out := format
-	for _, p := range [][2]string{
-		{"yyyy", "2006"}, {"yy", "06"}, {"MMMM", "January"}, {"MMM", "Jan"}, {"MM", "01"},
-		{"dddd", "Monday"}, {"ddd", "Mon"}, {"dd", "02"}, {"HH", "15"}, {"mm", "04"}, {"ss", "05"},
-	} {
-		out = strings.ReplaceAll(out, p[0], p[1])
-	}
-	if out == "" {
-		return "2006-01-02"
-	}
-	return out
 }

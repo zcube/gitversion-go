@@ -11,21 +11,8 @@ import (
 	"github.com/zcube/gitversion-go/internal/rx"
 	"github.com/zcube/gitversion-go/internal/semrel"
 	v "github.com/zcube/gitversion-go/internal/version"
+	"github.com/zcube/gitversion-go/internal/workflow"
 )
-
-// dotnetDateFormatToGoLayout 는 .NET 날짜 포맷을 Go 의 reference 레이아웃으로 변환한다.
-func dotnetDateFormatToGoLayout(format string) string {
-	out := format
-	for _, p := range [][2]string{
-		{"yyyy", "2006"}, {"yy", "06"},
-		{"MMMM", "January"}, {"MMM", "Jan"}, {"MM", "01"},
-		{"dddd", "Monday"}, {"ddd", "Mon"}, {"dd", "02"},
-		{"HH", "15"}, {"mm", "04"}, {"ss", "05"},
-	} {
-		out = strings.ReplaceAll(out, p[0], p[1])
-	}
-	return out
-}
 
 // baseVersion 은 한 전략이 만들어 낸 base version 후보.
 type baseVersion struct {
@@ -384,7 +371,8 @@ func isReleaseBranch(cfg *config.GitVersionConfiguration, branchName string) boo
 	return false
 }
 
-// Calculate 는 전체 계산 진입점. 최종 출력 변수를 만든다.
+// Calculate 는 전체 계산 진입점. 공통 컨텍스트(HEAD/브랜치/effective 설정)를 해석한 뒤
+// 워크플로에 맞는 Calculator(GitVersion 계열 또는 SemanticRelease)를 선택해 위임한다.
 func Calculate(repo *git.GitRepo, cfg *config.GitVersionConfiguration, branchOverride *string) (*output.VersionVariables, error) {
 	var head git.CommitInfo
 	var branchName string
@@ -417,12 +405,24 @@ func Calculate(repo *git.GitRepo, cfg *config.GitVersionConfiguration, branchOve
 		return nil, err
 	}
 
-	// SemanticRelease 워크플로: GitVersion 전략 대신 semantic-release 동작으로 계산.
-	// effective config(tag-prefix, bump 정규식, commit-date-format, assembly scheme,
-	// pre-release-weight 등 의미론적으로 동일한 설정)를 그대로 사용한다.
+	ctx := &workflow.Context{Repo: repo, Config: cfg, Eff: &eff, Branch: branchName, Head: head}
+	return selectCalculator(cfg).Calculate(ctx)
+}
+
+// selectCalculator 는 워크플로에 맞는 계산기를 고른다.
+func selectCalculator(cfg *config.GitVersionConfiguration) workflow.Calculator {
 	if isSemanticWorkflow(cfg) {
-		return semrel.CalculateEff(repo, &eff, branchName)
+		return semrel.Calculator{}
 	}
+	return gitVersionCalculator{}
+}
+
+// gitVersionCalculator 는 GitVersion 계열(GitFlow/GitHubFlow/TrunkBased/Mainline) 계산기.
+type gitVersionCalculator struct{}
+
+func (gitVersionCalculator) Calculate(ctx *workflow.Context) (*output.VersionVariables, error) {
+	repo, cfg, branchName, head := ctx.Repo, ctx.Config, ctx.Branch, ctx.Head
+	eff := *ctx.Eff
 
 	ig := ignoreFromConfig(cfg)
 

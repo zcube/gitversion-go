@@ -3,7 +3,6 @@ package calc
 import (
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -11,6 +10,7 @@ import (
 	"github.com/zcube/gitversion-go/internal/git"
 	"github.com/zcube/gitversion-go/internal/output"
 	"github.com/zcube/gitversion-go/internal/rx"
+	"github.com/zcube/gitversion-go/internal/varutil"
 	v "github.com/zcube/gitversion-go/internal/version"
 )
 
@@ -115,17 +115,21 @@ func buildVariables(eff *config.EffectiveConfiguration, branchName string, head 
 		weighted = i64p(eff.TagPreReleaseWeight)
 	}
 
-	assemblySemVer := assemblyVersion(sv, eff.AssemblyVersioningScheme)
-	assemblySemFileVer := assemblyVersion(sv, eff.AssemblyFileVersioningScheme)
+	var preNum int64
+	if sv.PreReleaseTag.Number != nil {
+		preNum = *sv.PreReleaseTag.Number
+	}
+	assemblySemVer := varutil.AssemblyVersion(sv.Major, sv.Minor, sv.Patch, preNum, eff.AssemblyVersioningScheme)
+	assemblySemFileVer := varutil.AssemblyVersion(sv.Major, sv.Minor, sv.Patch, preNum, eff.AssemblyFileVersioningScheme)
 
 	informational := semVer
 	if fullBuildMeta != "" {
 		informational = semVer + "+" + fullBuildMeta
 	}
 
-	escapedBranch := escapeBranchRe.ReplaceAll(branchName, "-")
+	escapedBranch := varutil.EscapeBranchName(branchName)
 
-	layout := dotnetDateFormatToGoLayout(eff.CommitDateFormat)
+	layout := varutil.DotNetDateToGoLayout(eff.CommitDateFormat)
 	commitDate := head.When.UTC().Format(layout)
 
 	vars := &output.VersionVariables{
@@ -184,10 +188,7 @@ func buildVariables(eff *config.EffectiveConfiguration, branchName string, head 
 	return vars, nil
 }
 
-var (
-	escapeBranchRe  = rx.MustCompile(`[^a-zA-Z0-9-]`)
-	templateTokenRe = rx.MustCompile(`\{(?<t>[A-Za-z0-9_:]+)\}`)
-)
+var templateTokenRe = rx.MustCompile(`\{(?<t>[A-Za-z0-9_:]+)\}`)
 
 // renderTemplate: `{Variable}` 및 `{env:VAR}` 토큰을 변수 맵으로 치환. 알 수 없는
 // 토큰이 있으면 원본처럼 에러를 반환한다.
@@ -210,24 +211,4 @@ func renderTemplate(format string, ctx map[string]string) (string, error) {
 		return "", fmt.Errorf("Unknown template token '{%s}' in format string", unknown)
 	}
 	return out, nil
-}
-
-// assemblyVersion: AssemblyVersion 스킴 적용.
-func assemblyVersion(sv *v.SemanticVersion, scheme config.VersioningScheme) string {
-	var pre int64
-	if sv.PreReleaseTag.Number != nil {
-		pre = *sv.PreReleaseTag.Number
-	}
-	switch scheme {
-	case config.SchemeMajor:
-		return strconv.FormatInt(sv.Major, 10) + ".0.0.0"
-	case config.SchemeMajorMinor:
-		return fmt.Sprintf("%d.%d.0.0", sv.Major, sv.Minor)
-	case config.SchemeMajorMinorPatch:
-		return fmt.Sprintf("%d.%d.%d.0", sv.Major, sv.Minor, sv.Patch)
-	case config.SchemeMajorMinorPatchTag:
-		return fmt.Sprintf("%d.%d.%d.%d", sv.Major, sv.Minor, sv.Patch, pre)
-	default:
-		return ""
-	}
 }
