@@ -152,9 +152,17 @@ backtracking, 미참여 그룹 구분)을 보장한다.
 
 ## semantic-release 호환 워크플로
 
-GitVersion 의 GitFlow/GitHubFlow/TrunkBased 외에, **`workflow: SemanticRelease`** 를 지정하면
+GitVersion 의 GitFlow/GitHubFlow/TrunkBased 외에, **`workflow: SemanticRelease`** 또는
+**`workflow: SemanticRelease/{preset}`** 를 지정하면
 [semantic-release](https://github.com/semantic-release/semantic-release) 와 동일한 버전 체계로
-계산한다(Conventional Commits 분석):
+계산한다(Conventional Commits 분석). preset 은 `angular`(기본) 또는 `conventionalcommits`:
+
+| workflow | 프리셋 | 차이 |
+|---|---|---|
+| `SemanticRelease` 또는 `SemanticRelease/angular` | angular(기본) | `BREAKING CHANGE:` footer 만 major, `!` 미지원 |
+| `SemanticRelease/conventionalcommits` | conventionalcommits | `feat!:`/`fix!:` 의 `!` 와 `BREAKING-CHANGE`(하이픈)도 major |
+
+공통 규칙(프리셋 무관):
 
 - `feat:` → minor, `fix:`/`perf:` → patch, `BREAKING CHANGE:` footer → major (angular 프리셋)
 - 최초 릴리스는 `1.0.0`, 이후 직전 태그에서 `semver.inc`
@@ -169,7 +177,9 @@ GitVersion 의 GitFlow/GitHubFlow/TrunkBased 외에, **`workflow: SemanticReleas
 - **merge 커밋**: `git log lastTag..HEAD` 범위(merged-in 커밋 포함)를 분석. 머지 커밋 메시지 자체는
   타입이 없어 릴리스를 트리거하지 않지만, 병합으로 들어온 `feat:`/`fix:` 는 반영됨.
 
-> conventionalcommits 프리셋(`!` breaking 단축 등)은 기본(angular)이 아니므로 현재 미지원이다.
+> 그 외 프리셋(atom/ember/eslint/jshint/express 등)은 니치이므로 미지원이다(필요 시 Preset 추가).
+> 골든은 angular/conventionalcommits 두 프리셋 모두 설치된 semantic-release 로 생성해 차등 검증한다
+> (conventionalcommits 재생성에는 `npm i -g conventional-changelog-conventionalcommits` 필요).
 
 ```bash
 gitversion-go --config <(echo "workflow: SemanticRelease")   # 또는 GitVersion.yml 에 명시

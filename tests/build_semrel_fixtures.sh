@@ -20,6 +20,9 @@ trap 'rm -rf "$STAGE" "$BAREROOT"' EXIT
 
 command -v semantic-release >/dev/null || { echo "오류: semantic-release(전역) 필요"; exit 1; }
 echo "semantic-release: $(semantic-release --version 2>/dev/null | tail -1)"
+# 비-angular 프리셋(conventionalcommits 등) 패키지 resolve 용. 전역 설치 필요:
+#   npm i -g conventional-changelog-conventionalcommits
+export NODE_PATH="$(npm root -g)"
 mkdir -p "$ROOT/testdata"
 
 # 결정론적 커밋(날짜/작성자 고정).
@@ -34,8 +37,10 @@ newrepo() { # $1 = name
   git -C "$REPO" config commit.gpgsign false
   git -C "$REPO" config tag.gpgsign false
   git -C "$REPO" config core.hooksPath /dev/null
-  CUR="$REPO"; FILE=0
+  CUR="$REPO"; FILE=0; PRESET=angular
 }
+
+usepreset() { PRESET="$1"; }  # 시나리오의 commit-analyzer preset 지정
 
 commit() { # $1 = message (multiline 허용)
   TICK=$((TICK + 60)); FILE=$((FILE + 1))
@@ -66,17 +71,23 @@ record() {
   git -C "$CUR" push -q origin --all
   git -C "$CUR" push -q origin --tags || true
   git -C "$CUR" push -q origin "refs/notes/semantic-release:refs/notes/semantic-release" 2>/dev/null || true
+  local plugins
+  if [ "$PRESET" = "angular" ]; then
+    plugins='["@semantic-release/commit-analyzer"]'
+  else
+    plugins="[[\"@semantic-release/commit-analyzer\",{\"preset\":\"$PRESET\"}]]"
+  fi
   cat > "$CUR/.releaserc.json" <<EOF
 { "repositoryUrl": "file://$bare",
   "branches": ["main","master",{"name":"beta","prerelease":true},{"name":"alpha","prerelease":true},"next","next-major"],
-  "plugins": ["@semantic-release/commit-analyzer"] }
+  "plugins": $plugins }
 EOF
   local out ver released
   out="$(cd "$CUR" && CI=true semantic-release --dry-run --no-ci 2>&1 || true)"
   ver="$(printf '%s' "$out" | sed -nE 's/.*next release version is ([0-9][0-9A-Za-z.+-]*).*/\1/p' | head -1)"
   if [ -n "$ver" ]; then released=true; else released=false; ver=""; fi
-  printf '{"NextVersion":"%s","Released":%s}\n' "$ver" "$released" > "$CUR/expected.json"
-  printf '%-22s -> %s\n' "$NAME" "${ver:-none}"
+  printf '{"NextVersion":"%s","Released":%s,"Preset":"%s"}\n' "$ver" "$released" "$PRESET" > "$CUR/expected.json"
+  printf '%-22s [%s] -> %s\n' "$NAME" "$PRESET" "${ver:-none}"
   # 정리: SR 전용 산출물 제거(엔진은 원격/설정 불필요).
   rm -f "$CUR/.releaserc.json"
   git -C "$CUR" remote remove origin
@@ -135,6 +146,15 @@ commit "Revert \"feat: a\"
 This reverts commit $SHA."
 commit "fix: b"
 record
+
+# ───────────────────────── conventionalcommits 프리셋 ────────────────────────────
+# angular 와 달리 `!` 단축과 BREAKING-CHANGE(하이픈)를 인식.
+newrepo cc_bang_feat;  usepreset conventionalcommits; tagcommit v1.0.0; commit "feat!: x"; record
+newrepo cc_bang_fix;   usepreset conventionalcommits; tagcommit v1.0.0; commit "fix!: x"; record
+newrepo cc_bang_scope; usepreset conventionalcommits; tagcommit v1.0.0; commit "feat(api)!: x"; record
+newrepo cc_hyphen;     usepreset conventionalcommits; tagcommit v1.0.0; commit $'feat: x\n\nBREAKING-CHANGE: y'; record
+newrepo cc_plain_feat; usepreset conventionalcommits; tagcommit v1.0.0; commit "feat: x"; record
+newrepo cc_first_bang; usepreset conventionalcommits; commit "feat!: x"; record
 
 echo "압축: $OUT"
 tar -C "$STAGE" -czf "$OUT" .

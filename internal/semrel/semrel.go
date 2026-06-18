@@ -13,12 +13,17 @@ import (
 	"github.com/zcube/gitversion-go/internal/workflow"
 )
 
-// Calculator 는 SemanticRelease 워크플로 계산기(workflow.Calculator 구현).
-type Calculator struct{}
+// Calculator 는 SemanticRelease 워크플로 계산기(workflow.Calculator 구현). 프리셋을 보유한다.
+type Calculator struct {
+	Preset Preset
+}
+
+// NewCalculator 는 프리셋을 지정해 계산기를 만든다.
+func NewCalculator(p Preset) Calculator { return Calculator{Preset: p} }
 
 // Calculate 는 공통 컨텍스트로 출력 변수를 만든다.
-func (Calculator) Calculate(ctx *workflow.Context) (*output.VersionVariables, error) {
-	return CalculateEff(ctx.Repo, ctx.Eff, ctx.Branch)
+func (c Calculator) Calculate(ctx *workflow.Context) (*output.VersionVariables, error) {
+	return CalculateEff(ctx.Repo, ctx.Eff, ctx.Branch, c.Preset)
 }
 
 // DefaultPrereleaseBranches: semantic-release 기본 프리릴리스 브랜치 → 채널.
@@ -63,8 +68,8 @@ func stripTagPrefix(name, tagPrefix string) string {
 }
 
 // Compute 는 semantic-release 와 동일하게 다음 릴리스 버전을 계산한다.
-// ac 는 커밋 분석 설정(tag-prefix + bump 정규식 등).
-func Compute(repo *git.GitRepo, branch string, ac AnalyzerConfig) (Result, error) {
+// ac 는 커밋 분석 설정(tag-prefix + bump 정규식 등), p 는 프리셋(angular/conventionalcommits).
+func Compute(repo *git.GitRepo, branch string, ac AnalyzerConfig, p Preset) (Result, error) {
 	head, err := repo.HeadCommit()
 	if err != nil {
 		return Result{}, err
@@ -114,8 +119,8 @@ func Compute(repo *git.GitRepo, branch string, ac AnalyzerConfig) (Result, error
 	if err != nil {
 		return Result{}, err
 	}
-	commits = filterReverted(commits) // revert+대상 커밋 쌍 제거(commit-analyzer 동작)
-	relType := levelName(analyze(commits, ac))
+	commits = filterReverted(commits, p) // revert+대상 커밋 쌍 제거(commit-analyzer 동작)
+	relType := levelName(analyze(commits, ac, p))
 
 	res := Result{LastVersion: lastVersion, Channel: channel}
 	if relType == "" {
@@ -147,9 +152,9 @@ func Compute(repo *git.GitRepo, branch string, ac AnalyzerConfig) (Result, error
 // CalculateEff 는 EffectiveConfiguration 을 사용해 출력 변수를 만든다(CLI/공개 API용).
 // tag-prefix, bump 정규식, commit-date-format, assembly scheme, pre-release-weight 등
 // 기존 GitVersion 설정과 의미론적으로 동일한 값을 반영한다.
-func CalculateEff(repo *git.GitRepo, eff *config.EffectiveConfiguration, branch string) (*output.VersionVariables, error) {
+func CalculateEff(repo *git.GitRepo, eff *config.EffectiveConfiguration, branch string, p Preset) (*output.VersionVariables, error) {
 	ac := FromEffective(eff)
-	r, err := Compute(repo, branch, ac)
+	r, err := Compute(repo, branch, ac, p)
 	if err != nil {
 		return nil, err
 	}

@@ -412,7 +412,11 @@ func Calculate(repo *git.GitRepo, cfg *config.GitVersionConfiguration, branchOve
 // selectCalculator 는 워크플로에 맞는 계산기를 고른다.
 func selectCalculator(cfg *config.GitVersionConfiguration) workflow.Calculator {
 	if isSemanticWorkflow(cfg) {
-		return semrel.Calculator{}
+		wf := ""
+		if cfg.Workflow != nil {
+			wf = *cfg.Workflow
+		}
+		return semrel.NewCalculator(semrel.PresetFromWorkflow(wf))
 	}
 	return gitVersionCalculator{}
 }

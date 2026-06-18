@@ -65,6 +65,7 @@ func extractSemrelFixtures(t *testing.T) string {
 type semrelExpected struct {
 	NextVersion string `json:"NextVersion"`
 	Released    bool   `json:"Released"`
+	Preset      string `json:"Preset"`
 }
 
 // 설치된 semantic-release 가 생성한 골든과 우리 semrel 엔진을 차등 비교한다.
@@ -111,7 +112,8 @@ func TestSemrelFixturesMatchSemanticRelease(t *testing.T) {
 			// 실제 경로와 동일하게 effective config(SemanticRelease 워크플로)에서 분석 설정 파생.
 			wf := "SemanticRelease"
 			eff := config.ResolveEffective(config.ForWorkflow(&wf), branch)
-			r, err := semrel.Compute(repo, branch, semrel.FromEffective(&eff))
+			preset := semrel.PresetByName(exp.Preset) // expected.json 의 preset(기본 angular)
+			r, err := semrel.Compute(repo, branch, semrel.FromEffective(&eff), preset)
 			if err != nil {
 				t.Fatalf("계산 실패: %v", err)
 			}
