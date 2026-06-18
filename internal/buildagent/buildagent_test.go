@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/zcube/go-gitversion/internal/output"
+	"github.com/zcube/gitversion-go/internal/output"
 )
 
 func sample() *output.VersionVariables {

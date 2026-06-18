@@ -1,0 +1,51 @@
+# GoReleaser 설정 — 멀티플랫폼 빌드/아카이브/체크섬/릴리즈.
+# 버전은 git 태그가 단일 소스(예: v0.1.0 -> 0.1.0). main.version 에 주입된다.
+version: 2
+
+project_name: gitversion-go
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: gitversion-go
+    main: ./cmd/gitversion-go
+    binary: gitversion-go
+    env:
+      - CGO_ENABLED=0
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    ldflags:
+      - -s -w -X main.version={{.Version}}
+
+archives:
+  - id: default
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+    format: tar.gz
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - README.md
+      - LICENSE
+
+checksum:
+  name_template: "checksums.txt"
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  use: github
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+
+release:
+  draft: false
+  prerelease: auto

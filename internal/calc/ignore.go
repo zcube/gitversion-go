@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/zcube/go-gitversion/internal/config"
-	"github.com/zcube/go-gitversion/internal/git"
+	"github.com/zcube/gitversion-go/internal/config"
+	"github.com/zcube/gitversion-go/internal/git"
 )
 
 // ignoreSet 은 버전 계산에서 제외할 커밋 집합. 원본 `ignore` 설정.

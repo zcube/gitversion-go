@@ -9,7 +9,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/zcube/go-gitversion/internal/rx"
+	"github.com/zcube/gitversion-go/internal/rx"
 )
 
 // 원본 GitVersion.Output/AssemblyInfo/*, WixUpdater/* 대응.

@@ -8,7 +8,7 @@ import (
 
 	"github.com/charmbracelet/fang"
 
-	"github.com/zcube/go-gitversion/internal/cli"
+	"github.com/zcube/gitversion-go/internal/cli"
 )
 
 // version 은 빌드 시 -ldflags 로 주입할 수 있다(기본은 dev).

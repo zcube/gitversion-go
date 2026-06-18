@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/zcube/go-gitversion/internal/rx"
+	"github.com/zcube/gitversion-go/internal/rx"
 )
 
 // jsonModel 은 JSON 직렬화 순서/생략 규칙을 원본 VersionVariablesJsonModel 과 맞춘다.

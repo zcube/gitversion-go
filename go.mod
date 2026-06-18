@@ -1,4 +1,4 @@
-module github.com/zcube/go-gitversion
+module github.com/zcube/gitversion-go
 
 go 1.26.4
 

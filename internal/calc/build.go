@@ -7,11 +7,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/zcube/go-gitversion/internal/config"
-	"github.com/zcube/go-gitversion/internal/git"
-	"github.com/zcube/go-gitversion/internal/output"
-	"github.com/zcube/go-gitversion/internal/rx"
-	v "github.com/zcube/go-gitversion/internal/version"
+	"github.com/zcube/gitversion-go/internal/config"
+	"github.com/zcube/gitversion-go/internal/git"
+	"github.com/zcube/gitversion-go/internal/output"
+	"github.com/zcube/gitversion-go/internal/rx"
+	v "github.com/zcube/gitversion-go/internal/version"
 )
 
 func compileCI(pat string) (*rx.Regexp, error) {

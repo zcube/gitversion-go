@@ -13,15 +13,15 @@ import (
 	"github.com/goccy/go-yaml"
 	"github.com/spf13/cobra"
 
-	"github.com/zcube/go-gitversion/internal/buildagent"
-	"github.com/zcube/go-gitversion/internal/cache"
-	"github.com/zcube/go-gitversion/internal/calc"
-	"github.com/zcube/go-gitversion/internal/config"
-	"github.com/zcube/go-gitversion/internal/exec"
-	"github.com/zcube/go-gitversion/internal/git"
-	"github.com/zcube/go-gitversion/internal/i18n"
-	"github.com/zcube/go-gitversion/internal/output"
-	"github.com/zcube/go-gitversion/internal/remote"
+	"github.com/zcube/gitversion-go/internal/buildagent"
+	"github.com/zcube/gitversion-go/internal/cache"
+	"github.com/zcube/gitversion-go/internal/calc"
+	"github.com/zcube/gitversion-go/internal/config"
+	"github.com/zcube/gitversion-go/internal/exec"
+	"github.com/zcube/gitversion-go/internal/git"
+	"github.com/zcube/gitversion-go/internal/i18n"
+	"github.com/zcube/gitversion-go/internal/output"
+	"github.com/zcube/gitversion-go/internal/remote"
 )
 
 type options struct {
@@ -63,7 +63,7 @@ type options struct {
 func NewRootCommand(version string) *cobra.Command {
 	o := &options{}
 	cmd := &cobra.Command{
-		Use:           "gitversion [path]",
+		Use:           "gitversion-go [path]",
 		Short:         "Calculate a semantic version from Git history",
 		Version:       version,
 		Args:          cobra.MaximumNArgs(1),

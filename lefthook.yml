@@ -1,0 +1,17 @@
+# lefthook 설정 — 로컬에서 CI 게이트(fmt/vet/test)를 미리 강제한다.
+# 설치: lefthook install   (제거: lefthook uninstall)
+
+pre-commit:
+  commands:
+    fmt:
+      glob: "*.go"
+      run: gofmt -w {staged_files}
+      stage_fixed: true
+    vet:
+      glob: "*.go"
+      run: go vet ./...
+
+pre-push:
+  commands:
+    test:
+      run: go test ./...

@@ -13,8 +13,8 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/zcube/go-gitversion/internal/output"
-	"github.com/zcube/go-gitversion/internal/rx"
+	"github.com/zcube/gitversion-go/internal/output"
+	"github.com/zcube/gitversion-go/internal/rx"
 )
 
 // HookOrder 는 side-effect 훅 실행 순서.

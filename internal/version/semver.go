@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/zcube/go-gitversion/internal/rx"
+	"github.com/zcube/gitversion-go/internal/rx"
 )
 
 // PreReleaseTag 는 pre-release 태그. 예: `beta.1` => Name="beta", Number=1.

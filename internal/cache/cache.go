@@ -13,8 +13,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/zcube/go-gitversion/internal/git"
-	"github.com/zcube/go-gitversion/internal/output"
+	"github.com/zcube/gitversion-go/internal/git"
+	"github.com/zcube/gitversion-go/internal/output"
 )
 
 // ComputeKey 는 (refs 스냅샷 + HEAD + 설정파일 내용 + overrideconfig)의 SHA1 hex.

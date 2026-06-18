@@ -1,10 +1,10 @@
 package calc
 
 import (
-	"github.com/zcube/go-gitversion/internal/config"
-	"github.com/zcube/go-gitversion/internal/git"
-	"github.com/zcube/go-gitversion/internal/output"
-	v "github.com/zcube/go-gitversion/internal/version"
+	"github.com/zcube/gitversion-go/internal/config"
+	"github.com/zcube/gitversion-go/internal/git"
+	"github.com/zcube/gitversion-go/internal/output"
+	v "github.com/zcube/gitversion-go/internal/version"
 )
 
 func deref(s *string) string {

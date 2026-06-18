@@ -1,4 +1,4 @@
-# go-gitversion
+# gitversion-go
 
 GitVersion(.NET)의 **Go 포트**. Git 히스토리로부터 시맨틱 버전을 계산한다.
 [`../gitversion`](../gitversion) 의 Rust 포트를 동일한 골든 픽스쳐로 다시 Go 로 옮긴 것으로,
@@ -12,24 +12,36 @@ GitVersion(.NET)의 **Go 포트**. Git 히스토리로부터 시맨틱 버전을
 - 비교 키: `FullSemVer`, `SemVer`, `MajorMinorPatch`, `PreReleaseTag`, `AssemblySemVer`,
   `VersionSourceSemVer`, `CommitDate`, `Sha` 등 22개 핵심 변수.
 
+## 설치
+
+```bash
+# CLI 설치
+go install github.com/zcube/gitversion-go/cmd/gitversion-go@latest
+
+# 또는 릴리즈 페이지에서 플랫폼별 바이너리 다운로드
+#   https://github.com/zcube/gitversion-go/releases
+```
+
+## 사용
+
 ```bash
 go build ./...                 # 빌드
 go test ./...                  # 단위 + 픽스쳐 차등 테스트
-go build -o gitversion ./cmd/gitversion
-./gitversion                   # 현재 저장소 버전 계산(JSON)
-./gitversion -v SemVer         # 단일 변수
-./gitversion --format "{Major}.{Minor}"
-./gitversion --output dot-env  # GitVersion_Major='1' ...
-./gitversion --showconfig      # effective 설정(YAML)
-./gitversion --lang ko         # 메시지 로케일(en/ko/ja/zh)
+go build -o gitversion-go ./cmd/gitversion-go
+./gitversion-go                   # 현재 저장소 버전 계산(JSON)
+./gitversion-go -v SemVer         # 단일 변수
+./gitversion-go --format "{Major}.{Minor}"
+./gitversion-go --output dot-env  # GitVersion_Major='1' ...
+./gitversion-go --showconfig      # effective 설정(YAML)
+./gitversion-go --lang ko         # 메시지 로케일(en/ko/ja/zh)
 ```
 
 ## 라이브러리로 사용 (외부 패키지)
 
-CLI 외에 **공개 패키지 `github.com/zcube/go-gitversion/gitversion`** 로도 임포트해 쓸 수 있다.
+CLI 외에 **공개 패키지 `github.com/zcube/gitversion-go/gitversion`** 로도 임포트해 쓸 수 있다.
 
 ```go
-import "github.com/zcube/go-gitversion/gitversion"
+import "github.com/zcube/gitversion-go/gitversion"
 
 // 1) 가장 간단: 경로만
 v, err := gitversion.Compute(".")
@@ -85,7 +97,7 @@ j, _ := v.ToJSON()                     // GitVersion 호환 JSON
 | `src/config/{model,defaults,loader,effective}.rs` | `internal/config` | 설정 모델 / 워크플로 기본값 / 로더 / effective 해석 |
 | `src/git/mod.rs` | `internal/git` | go-git 기반 저장소 접근(태그/커밋 워킹/merge-base 등) |
 | `src/output/{variables,generator}.rs` | `internal/output` | 출력 변수와 JSON/dotenv/build-server 포맷터 |
-| `src/cli/mod.rs` + `src/app.rs` | `internal/cli` + `cmd/gitversion` | cobra/fang 명령과 진입 로직 |
+| `src/cli/mod.rs` + `src/app.rs` | `internal/cli` + `cmd/gitversion-go` | cobra/fang 명령과 진입 로직 |
 | `src/i18n.rs` + `locales/` | `internal/i18n` | go-i18n 로케일 처리 |
 | `src/buildagent/mod.rs` | `internal/buildagent` | 15종 CI 어댑터(build-server 출력) |
 | `src/exec.rs` | `internal/exec` | 외부 명령 라이프사이클/version 훅 |

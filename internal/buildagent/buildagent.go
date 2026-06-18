@@ -10,7 +10,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/zcube/go-gitversion/internal/output"
+	"github.com/zcube/gitversion-go/internal/output"
 )
 
 // escapeValue 는 TeamCity/MyGet service message 값 이스케이프.

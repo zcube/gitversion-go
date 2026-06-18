@@ -7,10 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zcube/go-gitversion/internal/buildagent"
-	"github.com/zcube/go-gitversion/internal/calc"
-	"github.com/zcube/go-gitversion/internal/config"
-	"github.com/zcube/go-gitversion/internal/git"
+	"github.com/zcube/gitversion-go/internal/buildagent"
+	"github.com/zcube/gitversion-go/internal/calc"
+	"github.com/zcube/gitversion-go/internal/config"
+	"github.com/zcube/gitversion-go/internal/git"
 )
 
 // keepLine: UncommittedChanges(비결정적) 와 빈 줄은 비교에서 제외.

@@ -12,9 +12,9 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/zcube/go-gitversion/internal/calc"
-	"github.com/zcube/go-gitversion/internal/config"
-	"github.com/zcube/go-gitversion/internal/git"
+	"github.com/zcube/gitversion-go/internal/calc"
+	"github.com/zcube/gitversion-go/internal/config"
+	"github.com/zcube/gitversion-go/internal/git"
 )
 
 // comparedKeys: 비교할 출력 변수 키(버전 핵심 필드).

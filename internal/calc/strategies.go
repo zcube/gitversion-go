@@ -1,9 +1,9 @@
 package calc
 
 import (
-	"github.com/zcube/go-gitversion/internal/config"
-	"github.com/zcube/go-gitversion/internal/git"
-	v "github.com/zcube/go-gitversion/internal/version"
+	"github.com/zcube/gitversion-go/internal/config"
+	"github.com/zcube/gitversion-go/internal/git"
+	v "github.com/zcube/gitversion-go/internal/version"
 )
 
 // isMatchForBranchLabel: 브랜치 label 매칭 여부.
