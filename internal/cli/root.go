@@ -20,6 +20,7 @@ import (
 	"github.com/zcube/go-gitversion/internal/git"
 	"github.com/zcube/go-gitversion/internal/i18n"
 	"github.com/zcube/go-gitversion/internal/output"
+	"github.com/zcube/go-gitversion/internal/remote"
 )
 
 type options struct {
@@ -38,6 +39,11 @@ type options struct {
 	execHook       string
 	execVersion    string
 	dryRun         bool
+	url            string
+	username       string
+	password       string
+	commit         string
+	dynamicRepoDir string
 	// 원본 CLI 호환용 no-op 플래그.
 	nofetch, nonormalize, nocache, allowshallow bool
 }
@@ -77,6 +83,11 @@ func NewRootCommand(version string) *cobra.Command {
 	f.StringVar(&o.execHook, "exec", "", "Extra prepare hook command to run")
 	f.StringVar(&o.execVersion, "exec-version", "", "Version hook: command whose stdout overrides next-version")
 	f.BoolVar(&o.dryRun, "dry-run", false, "Print hook commands without executing them")
+	f.StringVar(&o.url, "url", "", "Remote repository URL to clone dynamically")
+	f.StringVarP(&o.username, "username", "u", "", "Username for remote authentication")
+	f.StringVarP(&o.password, "password", "p", "", "Password/token for remote authentication")
+	f.StringVarP(&o.commit, "commit", "c", "", "Commit to check out after a dynamic clone")
+	f.StringVar(&o.dynamicRepoDir, "dynamic-repo-location", "", "Directory for dynamic clones (default temp dir)")
 	f.BoolVar(&o.nofetch, "nofetch", false, "Disable fetch (no-op)")
 	f.BoolVar(&o.nonormalize, "nonormalize", false, "Disable normalization (no-op)")
 	f.BoolVar(&o.nocache, "nocache", false, "Disable disk cache (no-op)")
@@ -109,8 +120,22 @@ func run(o *options, path string) error {
 	i18n.Init(o.lang)
 	setupLogging(o.verbosity, o.diag)
 
+	// --url 이 주어지면 원격 저장소를 동적으로 clone 해 그 경로를 대상으로 사용.
 	target := path
-	if o.targetPath != "" {
+	if o.url != "" {
+		dest, err := remote.Prepare(&remote.Options{
+			URL:      o.url,
+			Branch:   o.branch,
+			Username: o.username,
+			Password: o.password,
+			Commit:   o.commit,
+			Location: o.dynamicRepoDir,
+		})
+		if err != nil {
+			return err
+		}
+		target = dest
+	} else if o.targetPath != "" {
 		target = o.targetPath
 	}
 	if abs, err := filepath.Abs(target); err == nil {
