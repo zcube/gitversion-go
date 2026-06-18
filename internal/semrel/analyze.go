@@ -2,6 +2,7 @@ package semrel
 
 import (
 	"regexp"
+	"strings"
 
 	"github.com/zcube/gitversion-go/internal/config"
 	"github.com/zcube/gitversion-go/internal/git"
@@ -28,10 +29,76 @@ const (
 )
 
 var (
-	headerRe    = regexp.MustCompile(`^(\w+)(?:\([^)]*\))?: `)
-	breakingRe  = regexp.MustCompile(`(?m)^[ \t*]*BREAKING CHANGES?[: ]`)
-	revertGitRe = regexp.MustCompile(`(?s)^Revert ".*"\s*This reverts commit \w+\.`)
+	headerRe = regexp.MustCompile(`^(\w+)(?:\([^)]*\))?: `)
+	// angular noteKeywords=['BREAKING CHANGE'] + parser note regex
+	// `^[\s|*]*(BREAKING CHANGE)[:\s]+` (case-insensitive). 복수형/하이픈은 미지원.
+	// 헤더가 아닌 body/footer 에서만 인식하므로 첫 줄을 제외한 본문에서 찾는다.
+	breakingRe = regexp.MustCompile(`(?im)^[\s|*]*BREAKING CHANGE[:\s]`)
+	// angular revertPattern: `^(?:Revert|revert:)\s"?(header)"?\s*This reverts commit (hash 7-40)\b` (i).
+	revertRe = regexp.MustCompile(`(?i)^(?:Revert|revert:)\s"?([\s\S]+?)"?\s*This reverts commit (\w{7,40})\b`)
 )
+
+func firstLine(msg string) string {
+	if i := strings.IndexByte(msg, '\n'); i >= 0 {
+		return strings.TrimSpace(msg[:i])
+	}
+	return strings.TrimSpace(msg)
+}
+
+func body(msg string) string {
+	if i := strings.IndexByte(msg, '\n'); i >= 0 {
+		return msg[i+1:]
+	}
+	return ""
+}
+
+// revertInfo 는 git-style revert 의 (reverted header, reverted hash) 를 추출한다.
+func revertInfo(msg string) (header, hash string, ok bool) {
+	m := revertRe.FindStringSubmatch(msg)
+	if m == nil {
+		return "", "", false
+	}
+	return strings.TrimSpace(m[1]), m[2], true
+}
+
+// filterReverted 는 commit-analyzer 의 filterRevertedCommits 처럼, 범위 내에서 revert 와
+// 그 대상 커밋(header+full SHA 일치)을 쌍으로 제거한다. 대상이 범위 밖이면 revert 는 남아
+// patch 로 분석된다. commits 는 최신순(newest-first)이라고 가정한다.
+func filterReverted(commits []git.CommitInfo) []git.CommitInfo {
+	n := len(commits)
+	isRev := make([]bool, n)
+	rHeader := make([]string, n)
+	rHash := make([]string, n)
+	hdr := make([]string, n)
+	for i := range commits {
+		hdr[i] = firstLine(commits[i].Message)
+		if h, hs, ok := revertInfo(commits[i].Message); ok {
+			isRev[i], rHeader[i], rHash[i] = true, h, hs
+		}
+	}
+	consumed := make([]bool, n)
+	for i := 0; i < n; i++ {
+		if !isRev[i] || consumed[i] {
+			continue
+		}
+		for j := 0; j < n; j++ {
+			if j == i || consumed[j] {
+				continue
+			}
+			if hdr[j] == rHeader[i] && commits[j].Sha == rHash[i] {
+				consumed[i], consumed[j] = true, true
+				break
+			}
+		}
+	}
+	out := make([]git.CommitInfo, 0, n)
+	for i := range commits {
+		if !consumed[i] {
+			out = append(out, commits[i])
+		}
+	}
+	return out
+}
 
 // AnalyzerConfig 는 커밋 분석 설정(EffectiveConfiguration 에서 파생).
 type AnalyzerConfig struct {
@@ -58,10 +125,11 @@ func FromEffective(eff *config.EffectiveConfiguration) AnalyzerConfig {
 // conventionalLevel 은 Conventional Commits(angular) 분석 레벨.
 func conventionalLevel(msg string) int {
 	lvl := lvlNone
-	if breakingRe.MatchString(msg) {
+	// BREAKING CHANGE note 는 헤더가 아닌 body/footer 에서만 인식.
+	if breakingRe.MatchString(body(msg)) {
 		lvl = lvlMajor
 	}
-	if lvl < lvlPatch && revertGitRe.MatchString(msg) {
+	if lvl < lvlPatch && revertRe.MatchString(msg) {
 		lvl = lvlPatch
 	}
 	if lvl < lvlMinor {

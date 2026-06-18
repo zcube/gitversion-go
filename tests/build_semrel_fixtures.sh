@@ -47,6 +47,13 @@ commit() { # $1 = message (multiline 허용)
 tag() { git -C "$CUR" tag "$1"; }                  # 현재 커밋에 태그
 tagcommit() { commit "chore: release $1"; tag "$1"; } # 커밋 후 태그
 branch() { git -C "$CUR" checkout -q -b "$1"; }     # 새 브랜치 생성+체크아웃
+co() { git -C "$CUR" checkout -q "$1"; }            # 기존 브랜치 체크아웃
+mergeNoFF() { # $1 = 머지할 브랜치 (머지 커밋 생성)
+  TICK=$((TICK + 60))
+  GIT_AUTHOR_DATE="$TICK +0000" GIT_COMMITTER_DATE="$TICK +0000" \
+    git -C "$CUR" merge -q --no-ff --no-verify -m "Merge branch '$1'" "$1"
+}
+headsha() { git -C "$CUR" rev-parse HEAD; }         # 현재 HEAD 전체 SHA
 # ptag: 프리릴리스 태그 + semantic-release 채널 note(실제 릴리스가 남기는 것과 동일).
 ptag() { git -C "$CUR" tag "$1"; git -C "$CUR" notes --ref semantic-release add -m "{\"channels\":[\"$2\"]}" "$1"; }
 
@@ -101,6 +108,33 @@ newrepo two_tags_fix;   tagcommit v1.0.0; commit "feat: a"; tag v1.1.0; commit "
 newrepo beta_first;     commit "chore: init"; branch beta; commit "feat: a"; record
 newrepo beta_from_main; tagcommit v1.0.0; branch beta; commit "feat: y"; record
 newrepo beta_second;    commit "chore: init"; branch beta; commit "feat: y"; ptag v1.1.0-beta.1 beta; commit "fix: z"; record
+
+# ───────────────────────── BREAKING note 변형(angular 프리셋) ─────────────────────
+# 복수형/하이픈은 major 미트리거(feat 만 → minor), 소문자는 i 플래그로 트리거.
+newrepo break_plural; tagcommit v1.0.0; commit $'feat: x\n\nBREAKING CHANGES: removed'; record
+newrepo break_hyphen; tagcommit v1.0.0; commit $'feat: x\n\nBREAKING-CHANGE: removed'; record
+newrepo break_lower;  tagcommit v1.0.0; commit $'fix: x\n\nbreaking change: removed'; record
+newrepo break_subject_only; tagcommit v1.0.0; commit "fix: BREAKING CHANGE in subject"; record
+
+# ───────────────────────── merge 커밋(merged-in 커밋 분석) ────────────────────────
+newrepo merge_feature; tagcommit v1.0.0; branch feature; commit "feat: x"; co main; mergeNoFF feature; record
+newrepo merge_chore;   tagcommit v1.0.0; branch chorebr; commit "chore: x"; co main; mergeNoFF chorebr; record
+
+# ───────────────────────── revert(범위 내 대상 커밋 제거) ─────────────────────────
+newrepo revert_in_range
+tagcommit v1.0.0; commit "feat: x"; SHA=$(headsha)
+commit "Revert \"feat: x\"
+
+This reverts commit $SHA."
+record
+
+newrepo revert_then_fix
+tagcommit v1.0.0; commit "feat: a"; SHA=$(headsha)
+commit "Revert \"feat: a\"
+
+This reverts commit $SHA."
+commit "fix: b"
+record
 
 echo "압축: $OUT"
 tar -C "$STAGE" -czf "$OUT" .

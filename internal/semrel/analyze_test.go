@@ -18,6 +18,11 @@ func TestConventionalLevel(t *testing.T) {
 		"revert: x":                      lvlNone, // conventional revert 는 무시
 		"feat: x\n\nBREAKING CHANGE: y":  lvlMajor,
 		"chore: c\n\nBREAKING CHANGE: y": lvlMajor,
+		// angular: 복수형/하이픈은 note 로 인식 안 됨(feat 만 minor), 소문자는 인식(major).
+		"feat: x\n\nBREAKING CHANGES: y":  lvlMinor,
+		"feat: x\n\nBREAKING-CHANGE: y":   lvlMinor,
+		"fix: x\n\nbreaking change: y":    lvlMajor,
+		"fix: BREAKING CHANGE in subject": lvlPatch, // 헤더(subject)의 문구는 note 아님
 	}
 	for msg, want := range cases {
 		if got := conventionalLevel(msg); got != want {
@@ -60,6 +65,26 @@ func TestRegexBumpCustom(t *testing.T) {
 	off := AnalyzerConfig{BumpEnabled: false, MinorMsg: `^Add `}
 	if got := analyze([]git.CommitInfo{{Message: "Add new widget"}}, off); got != lvlNone {
 		t.Errorf("disabled regex = %d, want none", got)
+	}
+}
+
+// filterReverted: revert 와 그 대상 커밋(header+full SHA 일치)을 쌍으로 제거.
+func TestFilterReverted(t *testing.T) {
+	feat := git.CommitInfo{Sha: "abc1234def5678", Message: "feat: x"}
+	revert := git.CommitInfo{Sha: "rrrr", Message: "Revert \"feat: x\"\n\nThis reverts commit abc1234def5678."}
+	fix := git.CommitInfo{Sha: "f1", Message: "fix: y"}
+
+	// 최신순: revert, feat, fix → revert+feat 제거, fix 만 남음.
+	got := filterReverted([]git.CommitInfo{revert, feat, fix})
+	if len(got) != 1 || got[0].Sha != "f1" {
+		t.Fatalf("revert+target 미제거: %+v", got)
+	}
+
+	// SHA 불일치(범위 밖 대상) → revert 유지.
+	badRevert := git.CommitInfo{Sha: "rrrr", Message: "Revert \"feat: x\"\n\nThis reverts commit 9999999999."}
+	got = filterReverted([]git.CommitInfo{badRevert, fix})
+	if len(got) != 2 {
+		t.Fatalf("불일치 revert 는 유지되어야 함: %+v", got)
 	}
 }
 

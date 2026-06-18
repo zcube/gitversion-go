@@ -161,6 +161,16 @@ GitVersion 의 GitFlow/GitHubFlow/TrunkBased 외에, **`workflow: SemanticReleas
 - `beta`/`alpha` 브랜치는 프리릴리스 채널(`1.1.0-beta.1` 등)
 - 릴리스할 변경이 없으면 직전 버전 유지
 
+**angular 프리셋 충실도**(설치본 동작과 일치, 차등 검증):
+- `BREAKING CHANGE` note 는 **body/footer 에서만**, **대소문자 무시**로 major. `BREAKING CHANGES`(복수)·
+  `BREAKING-CHANGE`(하이픈)·subject 의 문구는 트리거하지 않음. `feat!:` 의 `!` 단축도 미지원(angular).
+- **revert 필터링**: 범위 내에서 `Revert "..."`(+`This reverts commit <full-sha>`)와 그 대상 커밋을
+  쌍으로 분석에서 제거(commit-analyzer 의 filterRevertedCommits). 대상이 범위 밖이면 revert 는 patch.
+- **merge 커밋**: `git log lastTag..HEAD` 범위(merged-in 커밋 포함)를 분석. 머지 커밋 메시지 자체는
+  타입이 없어 릴리스를 트리거하지 않지만, 병합으로 들어온 `feat:`/`fix:` 는 반영됨.
+
+> conventionalcommits 프리셋(`!` breaking 단축 등)은 기본(angular)이 아니므로 현재 미지원이다.
+
 ```bash
 gitversion-go --config <(echo "workflow: SemanticRelease")   # 또는 GitVersion.yml 에 명시
 ```

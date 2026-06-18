@@ -114,6 +114,7 @@ func Compute(repo *git.GitRepo, branch string, ac AnalyzerConfig) (Result, error
 	if err != nil {
 		return Result{}, err
 	}
+	commits = filterReverted(commits) // revert+대상 커밋 쌍 제거(commit-analyzer 동작)
 	relType := levelName(analyze(commits, ac))
 
 	res := Result{LastVersion: lastVersion, Channel: channel}
