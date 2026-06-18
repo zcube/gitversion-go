@@ -47,6 +47,11 @@ go build -o gitversion ./cmd/gitversion
 | `src/output/{variables,generator}.rs` | `internal/output` | 출력 변수와 JSON/dotenv/build-server 포맷터 |
 | `src/cli/mod.rs` + `src/app.rs` | `internal/cli` + `cmd/gitversion` | cobra/fang 명령과 진입 로직 |
 | `src/i18n.rs` + `locales/` | `internal/i18n` | go-i18n 로케일 처리 |
+| `src/buildagent/mod.rs` | `internal/buildagent` | 15종 CI 어댑터(build-server 출력) |
+| `src/exec.rs` | `internal/exec` | 외부 명령 라이프사이클/version 훅 |
+| `src/remote.rs` | `internal/remote` | 동적 원격 저장소 clone(go-git) |
+| `src/cache.rs` | `internal/cache` | 디스크 캐시(SHA1 키, .git/gitversion_cache) |
+| `src/output/files.rs` | `internal/output/files.go` | AssemblyInfo/프로젝트/패키지/Wix 파일 갱신 |
 | (신규) | `internal/rx` | regexp2 래퍼(.NET named capture 호환) |
 
 ## 정규식 호환성
@@ -55,8 +60,17 @@ go build -o gitversion ./cmd/gitversion
 이 문법을 지원하지 않으므로, `internal/rx` 가 `regexp2` 를 감싸 .NET 과 동일한 매칭(named capture,
 backtracking, 미참여 그룹 구분)을 보장한다.
 
+## 추가 기능 플래그
+
+| 기능 | 플래그 |
+|---|---|
+| 빌드 에이전트 출력 | `--output build-server` (CI 자동 감지) |
+| version/side-effect 훅 | `--exec-version <cmd>`, `--exec <cmd>`, `--dry-run` (+ 설정 `exec:`) |
+| 원격 클론 | `--url <repo> --branch <b> [-u -p -c --dynamic-repo-location]` |
+| 디스크 캐시 | 기본 활성, `--nocache` 로 우회 |
+| 파일 갱신 | `--updateassemblyinfo [--ensureassemblyinfo]`, `--updateprojectfiles`, `--updatepackagefiles`, `--updatewixversionfile` |
+
 ## 미포팅 범위
 
-핵심 버전 계산 엔진과 출력은 100% 포팅했다. 다음은 차등 골든과 무관한 부수 기능으로 범위에서 제외했다:
-빌드 에이전트 어댑터(`buildagent`), TUI(`ratatui`), 외부 명령 훅(`exec`), 원격 clone(`remote`),
-디스크 캐시(`cache`), AssemblyInfo/프로젝트 파일 갱신(`output/files`).
+핵심 엔진·출력·CI 통합·훅·원격·캐시·파일 갱신을 모두 포팅했다. 대화형 TUI(`ratatui`)만
+범위에서 제외했다(터미널 UI 의존, 차등 골든과 무관).

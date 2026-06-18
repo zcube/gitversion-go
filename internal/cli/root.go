@@ -45,6 +45,15 @@ type options struct {
 	password       string
 	commit         string
 	dynamicRepoDir string
+	// 파일 출력.
+	updateAssemblyInfo bool
+	ensureAssemblyInfo bool
+	assemblyInfoFiles  []string
+	updateProjectFiles bool
+	projectFiles       []string
+	updateWixFile      bool
+	updatePackageFiles bool
+	packageFiles       []string
 	// 원본 CLI 호환용 no-op 플래그.
 	nofetch, nonormalize, nocache, allowshallow bool
 }
@@ -89,6 +98,14 @@ func NewRootCommand(version string) *cobra.Command {
 	f.StringVarP(&o.password, "password", "p", "", "Password/token for remote authentication")
 	f.StringVarP(&o.commit, "commit", "c", "", "Commit to check out after a dynamic clone")
 	f.StringVar(&o.dynamicRepoDir, "dynamic-repo-location", "", "Directory for dynamic clones (default temp dir)")
+	f.BoolVar(&o.updateAssemblyInfo, "updateassemblyinfo", false, "Update AssemblyInfo files (recursive search if no files given)")
+	f.BoolVar(&o.ensureAssemblyInfo, "ensureassemblyinfo", false, "Create the AssemblyInfo file if it does not exist")
+	f.StringArrayVar(&o.assemblyInfoFiles, "assemblyinfo-file", nil, "AssemblyInfo file to update (repeatable)")
+	f.BoolVar(&o.updateProjectFiles, "updateprojectfiles", false, "Update .csproj/.vbproj/.fsproj version elements")
+	f.StringArrayVar(&o.projectFiles, "project-file", nil, "Project file to update (repeatable)")
+	f.BoolVar(&o.updateWixFile, "updatewixversionfile", false, "Write GitVersion_WixVersion.wxi")
+	f.BoolVar(&o.updatePackageFiles, "updatepackagefiles", false, "Update package.json/Cargo.toml/pyproject.toml version")
+	f.StringArrayVar(&o.packageFiles, "package-file", nil, "Package manifest to update (repeatable)")
 	f.BoolVar(&o.nofetch, "nofetch", false, "Disable fetch (no-op)")
 	f.BoolVar(&o.nonormalize, "nonormalize", false, "Disable normalization (no-op)")
 	f.BoolVar(&o.nocache, "nocache", false, "Disable disk cache (no-op)")
@@ -221,6 +238,42 @@ func run(o *options, path string) error {
 			if err != nil {
 				return fmt.Errorf("%s: %w", i18n.T("error.calc_failed", nil), err)
 			}
+		}
+	}
+
+	// 파일 출력.
+	if o.updateAssemblyInfo {
+		paths, err := output.UpdateAssemblyInfo(vars, workdir, o.assemblyInfoFiles, o.ensureAssemblyInfo)
+		if err != nil {
+			return err
+		}
+		for _, p := range paths {
+			slog.Info("AssemblyInfo 갱신: " + p)
+		}
+	}
+	if o.updateProjectFiles {
+		paths, err := output.UpdateProjectFiles(vars, workdir, o.projectFiles)
+		if err != nil {
+			return err
+		}
+		for _, p := range paths {
+			slog.Info("프로젝트 파일 갱신: " + p)
+		}
+	}
+	if o.updateWixFile {
+		p, err := output.WriteWix(vars, workdir)
+		if err != nil {
+			return err
+		}
+		slog.Info("Wix 파일 생성: " + p)
+	}
+	if o.updatePackageFiles {
+		paths, err := output.UpdatePackageFiles(vars, workdir, o.packageFiles)
+		if err != nil {
+			return err
+		}
+		for _, p := range paths {
+			slog.Info("패키지 파일 갱신: " + p)
 		}
 	}
 
