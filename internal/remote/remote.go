@@ -55,7 +55,7 @@ func Prepare(opts *Options) (string, error) {
 	}
 
 	url := injectCredentials(opts.URL, opts.Username, opts.Password)
-	auth, err := authMethod(url, opts.Username, opts.Password)
+	auth, creds, usedHelper, err := authMethod(url, opts.Username, opts.Password, base)
 	if err != nil {
 		return "", err
 	}
@@ -68,7 +68,15 @@ func Prepare(opts *Options) (string, error) {
 		Auth:          auth,
 	})
 	if err != nil {
+		// credential helper 로 받은 자격증명이 인증에 실패했으면 helper 에서 지운다(erase).
+		if usedHelper && isAuthError(err) {
+			rejectCredentials(opts.URL, creds, base)
+		}
 		return "", fmt.Errorf("clone 실패 %s: %w", opts.URL, err)
+	}
+	// 성공 시 helper 에 자격증명 저장/갱신(store).
+	if usedHelper {
+		approveCredentials(opts.URL, creds, base)
 	}
 
 	if opts.Commit != "" {
@@ -103,15 +111,28 @@ func injectCredentials(url, user, pass string) string {
 	return url
 }
 
-// authMethod 는 URL 유형에 맞는 인증 방법을 반환한다. https 는 BasicAuth,
-// ssh 는 시스템 ssh-agent 를 사용한다.
-func authMethod(url, user, pass string) (transport.AuthMethod, error) {
+// authMethod 는 URL 유형에 맞는 인증 방법을 반환한다.
+//
+//   - https: -u/-p 가 모두 있으면 그대로 BasicAuth. 아니면 git credential helper
+//     (osxkeychain/GCM/libsecret 등)로 자격증명을 조회해 사용한다.
+//   - ssh: 시스템 ssh-agent.
+//
+// 반환: (auth, helper 로 받은 자격증명, helper 사용 여부, error).
+func authMethod(url, user, pass, dir string) (transport.AuthMethod, credentials, bool, error) {
 	switch {
 	case strings.HasPrefix(url, "https://") || strings.HasPrefix(url, "http://"):
-		if user != "" || pass != "" {
-			return &http.BasicAuth{Username: user, Password: pass}, nil
+		if user != "" && pass != "" {
+			return &http.BasicAuth{Username: user, Password: pass}, credentials{}, false, nil
 		}
-		return nil, nil
+		// -u/-p 가 불완전하면 credential helper 로 보충(user 는 힌트로 전달).
+		if c, ok := fillCredentials(url, user, dir); ok {
+			slog.Debug("git credential helper 로 자격증명 조회 성공: " + c.username)
+			return &http.BasicAuth{Username: c.username, Password: c.password}, c, true, nil
+		}
+		if user != "" || pass != "" {
+			return &http.BasicAuth{Username: user, Password: pass}, credentials{}, false, nil
+		}
+		return nil, credentials{}, false, nil
 	case strings.HasPrefix(url, "ssh://") || isSCPLike(url):
 		sshUser := "git"
 		if i := strings.Index(url, "@"); i >= 0 {
@@ -122,12 +143,25 @@ func authMethod(url, user, pass string) (transport.AuthMethod, error) {
 		}
 		auth, err := ssh.NewSSHAgentAuth(sshUser)
 		if err != nil {
-			return nil, nil // 에이전트가 없으면 기본 동작에 맡긴다.
+			return nil, credentials{}, false, nil // 에이전트가 없으면 기본 동작에 맡긴다.
 		}
-		return auth, nil
+		return auth, credentials{}, false, nil
 	default:
-		return nil, nil
+		return nil, credentials{}, false, nil
 	}
+}
+
+// isAuthError 는 clone 에러가 인증 실패인지 추정한다.
+func isAuthError(err error) bool {
+	if err == nil {
+		return false
+	}
+	if err == transport.ErrAuthenticationRequired || err == transport.ErrAuthorizationFailed {
+		return true
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "authentication") || strings.Contains(msg, "authorization") ||
+		strings.Contains(msg, "401") || strings.Contains(msg, "403")
 }
 
 func isSCPLike(url string) bool {

@@ -21,7 +21,7 @@
 | 14 | exec 훅(verify/prepare/publish/success/fail + version) | ✅ | `internal/exec`. `--exec`/`--exec-version`/`--dry-run`. 검증 완료 |
 | 15 | 결과 캐시(`<.git>/gitversion_cache`) | ✅ | `internal/cache` — SHA1(refs·HEAD·config·override), `--nocache`. 검증 완료 |
 | 16 | 동적 원격 저장소(`--url --branch` 등) | ⚠️ | `internal/remote` — go-git PlainClone. https BasicAuth + ssh-agent. 아래 16-a 참고 |
-| 16-a | credential helper / OS 키링(https) | ❌ | **미구현** — git credential-helper 프로토콜(osxkeychain/GCM/libsecret) 미연동 |
+| 16-a | credential helper / OS 키링(https) | ✅ | `internal/remote/credential.go` — `git credential fill/approve/reject` 연동. -u/-p 없으면 osxkeychain/GCM/libsecret 등에서 자동 조회, 성공 시 store, 인증 실패 시 erase |
 
 ## Known simplifications (원본과 동일하게 유지)
 
@@ -35,8 +35,9 @@
 
 1. **TUI (`--tui`)** — 미구현. Bubble Tea 등으로 별도 포팅 필요.
 2. **로그 파일 `--log`/`-l <FILE>`** — 미구현. slog 핸들러를 파일(append, 타임스탬프)로 전환하는 작업.
-3. **credential helper / OS 키링** — 미구현. https 인증 시 `git credential` 프로토콜 연동 필요.
-4. **프로젝트/패키지 파일 갱신 방식 차이(⚠️)** — 기능·결과는 동일하나 구현이 정규식 기반(원본은 XML/TOML 파서). 포맷 보존은 유지됨.
+3. **프로젝트/패키지 파일 갱신 방식 차이(⚠️)** — 기능·결과는 동일하나 구현이 정규식 기반(원본은 XML/TOML 파서). 포맷 보존은 유지됨.
+
+(credential helper / OS 키링은 구현 완료 — 16-a 참고.)
 
 핵심 버전 계산·출력·CI 통합·훅·원격·캐시·파일 갱신은 모두 구현·검증되었고, 남은 것은
 부수 기능 3종(TUI, 로그 파일, 자격증명 헬퍼)이다.

@@ -106,7 +106,7 @@ backtracking, 미참여 그룹 구분)을 보장한다.
 |---|---|
 | 빌드 에이전트 출력 | `--output build-server` (CI 자동 감지) |
 | version/side-effect 훅 | `--exec-version <cmd>`, `--exec <cmd>`, `--dry-run` (+ 설정 `exec:`) |
-| 원격 클론 | `--url <repo> --branch <b> [-u -p -c --dynamic-repo-location]` |
+| 원격 클론 | `--url <repo> --branch <b> [-u -p -c --dynamic-repo-location]` (https 는 `-u`/`-p` 미지정 시 git credential helper/OS 키링 자동 사용) |
 | 디스크 캐시 | 기본 활성, `--nocache` 로 우회 |
 | 파일 갱신 | `--updateassemblyinfo [--ensureassemblyinfo]`, `--updateprojectfiles`, `--updatepackagefiles`, `--updatewixversionfile` |
 
