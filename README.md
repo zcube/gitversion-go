@@ -124,6 +124,26 @@ backtracking, 미참여 그룹 구분)을 보장한다.
 | 로그 파일 | `-l`/`--log <FILE>`(타임스탬프 append) 또는 `--log console`(stderr). stdout 은 결과 전용 |
 | 파일 갱신 | `--updateassemblyinfo [--ensureassemblyinfo]`, `--updateprojectfiles`, `--updatepackagefiles`, `--updatewixversionfile` |
 
+## 버전 baseline 관리 (`next-version`)
+
+`next-version` 은 "다음 릴리스의 시작점(baseline)"이며, **영구 고정값이 아니라 한 사이클용 floor**다.
+우리 엔진은 후보 중 **가장 높은 버전**을 고르므로(원본 .NET 과 동일), `next-version` 과 도달 가능한
+태그를 비교해 동작한다:
+
+- `next-version` > 최신 태그  → `next-version` 이 채택됨 (예: 태그 v1.0.0, next-version 3.0.0 → 3.0.0)
+- 최신 태그 ≥ `next-version`  → **태그가 이김** (예: 태그 v1.0.0, next-version 0.5.0 → 1.0.x)
+- HEAD 가 정확히 `vX.Y.Z` 로 태그됨 → 그 태그 버전 그대로(기본 `when-current-commit-tagged`)
+
+**릴리스 후 갱신이 필요하다.** 예를 들어 `next-version: 1.0.0` 으로 개발하다 `v1.0.0` 태그를 만들면,
+그 다음부터는 태그가 `next-version` 을 가리므로(같거나 높음) `next-version` 은 사실상 무효가 된다.
+다음 사이클을 진행하려면 둘 중 하나:
+
+1. **`GitVersion.yml` 의 `next-version` 을 상향**(예: `1.1.0` 또는 `2.0.0`) — 다음 baseline 지정, 또는
+2. **더 높은 `v*` 태그 생성** — 태그가 항상 최종 소스이므로 별도 설정 없이도 버전이 올라간다.
+
+> 정리: `next-version` 은 "아직 태그가 없을 때의 임시 baseline"이고, 한 번 그 이상으로 태그하면
+> 다음 사이클을 위해 `next-version` 을 다시 올려 주거나 태그로만 관리하면 된다.
+
 ## 미포팅 범위
 
 핵심 엔진·출력·CI 통합·훅·원격·캐시·파일 갱신을 모두 포팅했다. 대화형 TUI(`ratatui`)만
