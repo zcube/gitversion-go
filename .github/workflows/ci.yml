@@ -40,7 +40,29 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-      - name: build
+      - name: build (examples 포함 전체)
         run: go build ./...
       - name: test
         run: go test ./...
+
+  examples:
+    name: examples (build & run)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # gitversion 이 전체 히스토리/태그를 보도록(예제 실행이 현실적이게)
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: build examples
+        run: go build ./examples/...
+      - name: run examples (smoke)
+        run: |
+          set -euo pipefail
+          for ex in basic options config; do
+            echo "::group::example/$ex"
+            go run "./examples/$ex" .
+            echo "::endgroup::"
+          done
