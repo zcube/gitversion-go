@@ -412,19 +412,18 @@ func Calculate(repo *git.GitRepo, cfg *config.GitVersionConfiguration, branchOve
 		branchName = bn
 	}
 
-	// SemanticRelease 워크플로: GitVersion 전략 대신 semantic-release 동작으로 계산.
-	if isSemanticWorkflow(cfg) {
-		tagPrefix := "[vV]?"
-		if cfg.TagPrefix != nil {
-			tagPrefix = *cfg.TagPrefix
-		}
-		return semrel.Calculate(repo, tagPrefix, branchName)
-	}
-
 	eff := config.ResolveEffective(cfg, branchName)
 	if err := validateConfigRegexes(&eff); err != nil {
 		return nil, err
 	}
+
+	// SemanticRelease 워크플로: GitVersion 전략 대신 semantic-release 동작으로 계산.
+	// effective config(tag-prefix, bump 정규식, commit-date-format, assembly scheme,
+	// pre-release-weight 등 의미론적으로 동일한 설정)를 그대로 사용한다.
+	if isSemanticWorkflow(cfg) {
+		return semrel.CalculateEff(repo, &eff, branchName)
+	}
+
 	ig := ignoreFromConfig(cfg)
 
 	if containsStrategy(cfg.Strategies, config.StrategyMainline) {

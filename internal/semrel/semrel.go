@@ -1,9 +1,11 @@
 package semrel
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 
+	"github.com/zcube/gitversion-go/internal/config"
 	"github.com/zcube/gitversion-go/internal/git"
 	"github.com/zcube/gitversion-go/internal/output"
 	"github.com/zcube/gitversion-go/internal/rx"
@@ -39,7 +41,6 @@ func branchChannel(branch string) (string, bool) {
 	return "", false
 }
 
-// stripTagPrefix 는 tag-prefix 정규식을 제거한다(기본 "[vV]?").
 func stripTagPrefix(name, tagPrefix string) string {
 	if tagPrefix == "" {
 		return name
@@ -52,21 +53,21 @@ func stripTagPrefix(name, tagPrefix string) string {
 }
 
 // Compute 는 semantic-release 와 동일하게 다음 릴리스 버전을 계산한다.
-func Compute(repo *git.GitRepo, tagPrefix, branch string) (Result, error) {
+// ac 는 커밋 분석 설정(tag-prefix + bump 정규식 등).
+func Compute(repo *git.GitRepo, branch string, ac AnalyzerConfig) (Result, error) {
 	head, err := repo.HeadCommit()
 	if err != nil {
 		return Result{}, err
 	}
 	channel, isPre := branchChannel(branch)
 
-	// HEAD 에서 도달 가능한 semver 태그 수집.
 	tags, err := repo.Tags()
 	if err != nil {
 		return Result{}, err
 	}
 	var reachable []taggedVersion
 	for _, t := range tags {
-		v, ok := parseSV(stripTagPrefix(t.Name, tagPrefix))
+		v, ok := parseSV(stripTagPrefix(t.Name, ac.TagPrefix))
 		if !ok {
 			continue
 		}
@@ -76,7 +77,7 @@ func Compute(repo *git.GitRepo, tagPrefix, branch string) (Result, error) {
 		reachable = append(reachable, taggedVersion{v: v, sha: t.TargetSha})
 	}
 
-	// lastRelease 선택: 릴리스 브랜치는 non-prerelease 만, 프리릴리스 브랜치는
+	// lastRelease: 릴리스 브랜치는 non-prerelease 만, 프리릴리스 브랜치는
 	// (non-prerelease ∪ 같은 채널 prerelease) 중 최고.
 	var last *taggedVersion
 	for i := range reachable {
@@ -93,7 +94,6 @@ func Compute(repo *git.GitRepo, tagPrefix, branch string) (Result, error) {
 		}
 	}
 
-	// lastRelease(제외)~HEAD 커밋 메시지 분석.
 	var from *string
 	lastVersion := ""
 	if last != nil {
@@ -104,50 +104,41 @@ func Compute(repo *git.GitRepo, tagPrefix, branch string) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
-	msgs := make([]string, 0, len(commits))
-	for _, c := range commits {
-		msgs = append(msgs, c.Message)
-	}
-	lvl := analyzeLevel(msgs)
-	relType := levelName(lvl)
+	relType := levelName(analyze(commits, ac))
 
 	res := Result{LastVersion: lastVersion, Channel: channel}
 	if relType == "" {
-		res.Released = false
 		return res, nil
 	}
 	res.Released = true
 	res.Type = relType
 
 	var ver sv
-	if isPre {
-		if last != nil {
-			if last.v.hasPre() && last.v.channel() == channel {
-				term1 := last.v.incPrerelease()
-				term2 := last.v.incRelease(relType).withChannel(channel)
-				ver = maxSV(term1, term2)
-			} else {
-				core := sv{major: last.v.major, minor: last.v.minor, patch: last.v.patch}
-				ver = core.incRelease(relType).withChannel(channel)
-			}
-		} else {
-			ver = sv{major: 1}.withChannel(channel) // 1.0.0-channel.1
-		}
-	} else {
-		if last != nil {
-			ver = last.v.incRelease(relType)
-		} else {
-			ver = sv{major: 1} // 1.0.0
-		}
+	switch {
+	case isPre && last != nil && last.v.hasPre() && last.v.channel() == channel:
+		term1 := last.v.incPrerelease()
+		term2 := last.v.incRelease(relType).withChannel(channel)
+		ver = maxSV(term1, term2)
+	case isPre && last != nil:
+		core := sv{major: last.v.major, minor: last.v.minor, patch: last.v.patch}
+		ver = core.incRelease(relType).withChannel(channel)
+	case isPre:
+		ver = sv{major: 1}.withChannel(channel) // 1.0.0-channel.1
+	case last != nil:
+		ver = last.v.incRelease(relType)
+	default:
+		ver = sv{major: 1} // 1.0.0
 	}
 	res.Version = ver.String()
 	return res, nil
 }
 
-// Calculate 는 semantic-release 워크플로의 출력 변수를 만든다(CLI/공개 API용).
-// 릴리스가 없으면 직전 버전(없으면 0.0.0)을 출력한다.
-func Calculate(repo *git.GitRepo, tagPrefix, branch string) (*output.VersionVariables, error) {
-	r, err := Compute(repo, tagPrefix, branch)
+// CalculateEff 는 EffectiveConfiguration 을 사용해 출력 변수를 만든다(CLI/공개 API용).
+// tag-prefix, bump 정규식, commit-date-format, assembly scheme, pre-release-weight 등
+// 기존 GitVersion 설정과 의미론적으로 동일한 값을 반영한다.
+func CalculateEff(repo *git.GitRepo, eff *config.EffectiveConfiguration, branch string) (*output.VersionVariables, error) {
+	ac := FromEffective(eff)
+	r, err := Compute(repo, branch, ac)
 	if err != nil {
 		return nil, err
 	}
@@ -165,8 +156,7 @@ func Calculate(repo *git.GitRepo, tagPrefix, branch string) (*output.VersionVari
 	}
 	parsed, _ := parseSV(verStr)
 
-	preTag := ""
-	preLabel := ""
+	preTag, preLabel := "", ""
 	var preNumber *int64
 	if parsed.hasPre() {
 		parts := make([]string, len(parsed.pre))
@@ -193,28 +183,74 @@ func Calculate(repo *git.GitRepo, tagPrefix, branch string) (*output.VersionVari
 		}
 		return "-" + s
 	}
-	mmp := strconv.Itoa(parsed.major) + "." + strconv.Itoa(parsed.minor) + "." + strconv.Itoa(parsed.patch)
-	commitDate := head.When.UTC().Format("2006-01-02")
+
+	// pre-release-weight(가중 번호): GitVersion 의미론과 동일.
+	var weighted *int64
+	if preNumber != nil {
+		w := *preNumber + eff.PreReleaseWeight
+		weighted = &w
+	} else {
+		w := eff.TagPreReleaseWeight
+		weighted = &w
+	}
+
+	layout := dotnetDateToGoLayout(eff.CommitDateFormat)
 	escaped := rx.MustCompile(`[^a-zA-Z0-9-]`).ReplaceAll(branch, "-")
+	preNum := 0
+	if preNumber != nil {
+		preNum = int(*preNumber)
+	}
 
 	return &output.VersionVariables{
-		Major:                   uint32(parsed.major),
-		Minor:                   uint32(parsed.minor),
-		Patch:                   uint32(parsed.patch),
-		PreReleaseTag:           preTag,
-		PreReleaseTagWithDash:   withDash(preTag),
-		PreReleaseLabel:         preLabel,
-		PreReleaseLabelWithDash: withDash(preLabel),
-		PreReleaseNumber:        preNumber,
-		MajorMinorPatch:         mmp,
-		SemVer:                  verStr,
-		FullSemVer:              verStr,
-		InformationalVersion:    verStr,
-		BranchName:              branch,
-		EscapedBranchName:       escaped,
-		Sha:                     head.Sha,
-		ShortSha:                head.ShortSha,
-		CommitDate:              commitDate,
-		VersionSourceSemVer:     r.LastVersion,
+		Major:                    uint32(parsed.major),
+		Minor:                    uint32(parsed.minor),
+		Patch:                    uint32(parsed.patch),
+		PreReleaseTag:            preTag,
+		PreReleaseTagWithDash:    withDash(preTag),
+		PreReleaseLabel:          preLabel,
+		PreReleaseLabelWithDash:  withDash(preLabel),
+		PreReleaseNumber:         preNumber,
+		WeightedPreReleaseNumber: weighted,
+		MajorMinorPatch:          fmt.Sprintf("%d.%d.%d", parsed.major, parsed.minor, parsed.patch),
+		SemVer:                   verStr,
+		FullSemVer:               verStr,
+		AssemblySemVer:           assemblyVersion(parsed.major, parsed.minor, parsed.patch, preNum, eff.AssemblyVersioningScheme),
+		AssemblySemFileVer:       assemblyVersion(parsed.major, parsed.minor, parsed.patch, preNum, eff.AssemblyFileVersioningScheme),
+		InformationalVersion:     verStr,
+		BranchName:               branch,
+		EscapedBranchName:        escaped,
+		Sha:                      head.Sha,
+		ShortSha:                 head.ShortSha,
+		CommitDate:               head.When.UTC().Format(layout),
+		VersionSourceSemVer:      r.LastVersion,
 	}, nil
+}
+
+func assemblyVersion(major, minor, patch, pre int, scheme config.VersioningScheme) string {
+	switch scheme {
+	case config.SchemeMajor:
+		return fmt.Sprintf("%d.0.0.0", major)
+	case config.SchemeMajorMinor:
+		return fmt.Sprintf("%d.%d.0.0", major, minor)
+	case config.SchemeMajorMinorPatch:
+		return fmt.Sprintf("%d.%d.%d.0", major, minor, patch)
+	case config.SchemeMajorMinorPatchTag:
+		return fmt.Sprintf("%d.%d.%d.%d", major, minor, patch, pre)
+	default:
+		return ""
+	}
+}
+
+func dotnetDateToGoLayout(format string) string {
+	out := format
+	for _, p := range [][2]string{
+		{"yyyy", "2006"}, {"yy", "06"}, {"MMMM", "January"}, {"MMM", "Jan"}, {"MM", "01"},
+		{"dddd", "Monday"}, {"ddd", "Mon"}, {"dd", "02"}, {"HH", "15"}, {"mm", "04"}, {"ss", "05"},
+	} {
+		out = strings.ReplaceAll(out, p[0], p[1])
+	}
+	if out == "" {
+		return "2006-01-02"
+	}
+	return out
 }

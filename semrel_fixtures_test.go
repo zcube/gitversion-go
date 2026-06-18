@@ -10,6 +10,7 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/zcube/gitversion-go/internal/config"
 	"github.com/zcube/gitversion-go/internal/git"
 	"github.com/zcube/gitversion-go/internal/semrel"
 )
@@ -107,7 +108,10 @@ func TestSemrelFixturesMatchSemanticRelease(t *testing.T) {
 			if err != nil {
 				t.Fatalf("브랜치 확인 실패: %v", err)
 			}
-			r, err := semrel.Compute(repo, "[vV]?", branch)
+			// 실제 경로와 동일하게 effective config(SemanticRelease 워크플로)에서 분석 설정 파생.
+			wf := "SemanticRelease"
+			eff := config.ResolveEffective(config.ForWorkflow(&wf), branch)
+			r, err := semrel.Compute(repo, branch, semrel.FromEffective(&eff))
 			if err != nil {
 				t.Fatalf("계산 실패: %v", err)
 			}

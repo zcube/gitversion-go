@@ -162,6 +162,27 @@ gitversion-go --config <(echo "workflow: SemanticRelease")   # 또는 GitVersion
 이 동작은 **설치된 semantic-release(25.x)로 생성한 골든**(`testdata/semrel_fixtures.tar.gz`)과
 `go test` 차등 검증으로 일치를 보장한다(재생성: `./tests/build_semrel_fixtures.sh`).
 
+### 설정(기존 GitVersion 키 재사용)
+
+SemanticRelease 워크플로도 의미론적으로 동일한 기존 GitVersion 설정 키를 그대로 따른다.
+`--showconfig` 로 effective config 를 확인할 수 있다.
+
+| 설정 키 | SemanticRelease 에서의 의미 |
+|---|---|
+| `tag-prefix` | 버전 태그 접두어(기본 `[vV]?`, semantic-release 의 `vX.Y.Z` 호환) |
+| `major/minor/patch-version-bump-message` | 커밋→bump **정규식**. Conventional Commits 분석에 **합집합(최고 우선)**으로 추가되어 규칙을 커스터마이즈(기본값은 `+semver:` 패턴이라 기본 동작 불변) |
+| `commit-message-incrementing` | `Disabled` 면 위 정규식 미적용(Conventional 분석만), `MergeMessageOnly` 면 머지 커밋에만 |
+| `commit-date-format` | `CommitDate` 출력 포맷 |
+| `assembly-versioning-scheme` / `assembly-file-versioning-scheme` | `AssemblySemVer` / `AssemblySemFileVer` 산출 |
+| `pre-release-weight` / `tag-pre-release-weight` | `WeightedPreReleaseNumber` 산출 |
+
+예) 커스텀 bump 정규식:
+
+```yaml
+workflow: SemanticRelease
+minor-version-bump-message: "^Add "   # 비-conventional "Add ..." 커밋도 minor 로
+```
+
 ## 미포팅 범위
 
 핵심 엔진·출력·CI 통합·훅·원격·캐시·파일 갱신을 모두 포팅했다. 대화형 TUI(`ratatui`)만
