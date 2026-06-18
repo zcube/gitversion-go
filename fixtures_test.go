@@ -121,58 +121,47 @@ func TestFixturesMatchRealGitVersion(t *testing.T) {
 		t.Fatalf("시나리오를 찾지 못했습니다: %s", root)
 	}
 
-	var failures []string
 	checked := 0
-
 	for _, dir := range scenarioDirs {
 		name := filepath.Base(dir)
-
-		expectedText, err := os.ReadFile(filepath.Join(dir, "expected.json"))
-		if err != nil {
-			failures = append(failures, fmt.Sprintf("[%s] expected.json 읽기 실패: %v", name, err))
-			continue
-		}
-		var expected map[string]interface{}
-		if err := json.Unmarshal(expectedText, &expected); err != nil {
-			failures = append(failures, fmt.Sprintf("[%s] expected.json 파싱 실패: %v", name, err))
-			continue
-		}
-
-		repo, err := git.Discover(dir)
-		if err != nil {
-			failures = append(failures, fmt.Sprintf("[%s] 저장소 오픈 실패: %v", name, err))
-			continue
-		}
-		workdir := repo.Workdir()
-		if workdir == "" {
-			workdir = dir
-		}
-		cfg, err := config.Load("", workdir, workdir)
-		if err != nil {
-			failures = append(failures, fmt.Sprintf("[%s] 설정 로드 실패: %v", name, err))
-			continue
-		}
-		vars, err := calc.Calculate(repo, cfg, nil)
-		if err != nil {
-			failures = append(failures, fmt.Sprintf("[%s] 계산 실패: %v", name, err))
-			continue
-		}
-		actual := vars.ToMap()
-
-		for _, key := range comparedKeys {
-			exp := normalize(expected[key])
-			got := actual[key]
-			if exp != got {
-				failures = append(failures, fmt.Sprintf("[%s] %s: 기대(real)=%q 실제(mine)=%q", name, key, exp, got))
+		// 시나리오별 서브테스트로 하나씩 검증한다(go test -v 에서 개별 PASS 표시).
+		t.Run(name, func(t *testing.T) {
+			expectedText, err := os.ReadFile(filepath.Join(dir, "expected.json"))
+			if err != nil {
+				t.Fatalf("expected.json 읽기 실패: %v", err)
 			}
-		}
+			var expected map[string]interface{}
+			if err := json.Unmarshal(expectedText, &expected); err != nil {
+				t.Fatalf("expected.json 파싱 실패: %v", err)
+			}
+			repo, err := git.Discover(dir)
+			if err != nil {
+				t.Fatalf("저장소 오픈 실패: %v", err)
+			}
+			workdir := repo.Workdir()
+			if workdir == "" {
+				workdir = dir
+			}
+			cfg, err := config.Load("", workdir, workdir)
+			if err != nil {
+				t.Fatalf("설정 로드 실패: %v", err)
+			}
+			vars, err := calc.Calculate(repo, cfg, nil)
+			if err != nil {
+				t.Fatalf("계산 실패: %v", err)
+			}
+			actual := vars.ToMap()
+			for _, key := range comparedKeys {
+				exp := normalize(expected[key])
+				got := actual[key]
+				if exp != got {
+					t.Errorf("%s: 기대(real)=%q 실제(mine)=%q", key, exp, got)
+				}
+			}
+		})
 		checked++
 	}
-
-	if len(failures) > 0 {
-		t.Fatalf("%d개 시나리오 중 불일치 %d건:\n%s", checked, len(failures), joinLines(failures))
-	}
-	t.Logf("%d개 시나리오 모두 실제 GitVersion 과 일치", checked)
+	t.Logf("%d개 시나리오 검증", checked)
 }
 
 func joinLines(s []string) string {
