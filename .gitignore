@@ -1,9 +1,11 @@
-/gitversion
+# 빌드 산출물 (소스 디렉터리 gitversion/ 와 충돌하지 않도록 정확한 파일명만 무시)
+/gitversion-go
 /gv
+/ext
 /dist/
 *.out
 *.test
 
+# 빌드 에이전트가 생성하는 파일
 /gitversion.properties
 /gitversion.ps1
-/gitversion-go

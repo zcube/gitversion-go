@@ -75,6 +75,7 @@ j, _ := v.ToJSON()                     // GitVersion 호환 JSON
 ```
 
 `internal/*` 은 외부에서 임포트할 수 없고, 공개 API 는 `gitversion` 패키지 하나로 모았다.
+실행 가능한 예제는 [`examples/`](examples/) 참고(`go run ./examples/basic` 등).
 
 ## 사용 라이브러리
 
