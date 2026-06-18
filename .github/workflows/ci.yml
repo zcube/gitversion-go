@@ -61,7 +61,7 @@ jobs:
       - name: run examples (smoke)
         run: |
           set -euo pipefail
-          for ex in basic options config; do
+          for ex in basic options config buildagent semrel; do
             echo "::group::example/$ex"
             go run "./examples/$ex" .
             echo "::endgroup::"

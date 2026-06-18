@@ -21,6 +21,7 @@ go run ./examples/basic       # 경로만으로 버전 계산
 go run ./examples/options     # 옵션 지정 + 출력 헬퍼(ShowVariable/FormatTemplate/ToJSON)
 go run ./examples/config      # 설정 직접 입력(ConfigYAML / Config 객체 / ParseConfig)
 go run ./examples/buildagent  # CI(빌드에이전트) 형식 출력(감지 + 명시 선택)
+go run ./examples/semrel      # semantic-release 동일 버전 체계(Conventional Commits)
 
 # 다른 저장소를 대상으로
 go run ./examples/basic /path/to/repo

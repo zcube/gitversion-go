@@ -9,6 +9,7 @@ import (
 	"github.com/zcube/gitversion-go/internal/git"
 	"github.com/zcube/gitversion-go/internal/output"
 	"github.com/zcube/gitversion-go/internal/rx"
+	"github.com/zcube/gitversion-go/internal/semrel"
 	v "github.com/zcube/gitversion-go/internal/version"
 )
 
@@ -359,6 +360,11 @@ func mergeBranchIncrement(cfg *config.GitVersionConfiguration, message string) (
 	return v.FieldNone, false
 }
 
+// isSemanticWorkflow: workflow 가 semantic-release 계열인지.
+func isSemanticWorkflow(cfg *config.GitVersionConfiguration) bool {
+	return cfg.Workflow != nil && strings.Contains(strings.ToLower(*cfg.Workflow), "semantic")
+}
+
 // isReleaseBranch: 브랜치명이 release 브랜치 설정(is-release-branch)에 매칭되는지.
 func isReleaseBranch(cfg *config.GitVersionConfiguration, branchName string) bool {
 	short := shortName(branchName)
@@ -404,6 +410,15 @@ func Calculate(repo *git.GitRepo, cfg *config.GitVersionConfiguration, branchOve
 			return nil, err
 		}
 		branchName = bn
+	}
+
+	// SemanticRelease 워크플로: GitVersion 전략 대신 semantic-release 동작으로 계산.
+	if isSemanticWorkflow(cfg) {
+		tagPrefix := "[vV]?"
+		if cfg.TagPrefix != nil {
+			tagPrefix = *cfg.TagPrefix
+		}
+		return semrel.Calculate(repo, tagPrefix, branchName)
 	}
 
 	eff := config.ResolveEffective(cfg, branchName)

@@ -277,6 +277,12 @@ func ForWorkflow(workflow *string) *GitVersionConfiguration {
 		return GitHubFlow()
 	case strings.HasPrefix(w, "trunkbased"), strings.HasPrefix(w, "mainline"):
 		return TrunkBased()
+	case strings.Contains(w, "semantic"):
+		// SemanticRelease 워크플로: GitVersion 전략은 쓰지 않으므로 base 는 무관하나,
+		// 디스패치를 위해 Workflow 값을 보존한다(tag-prefix 는 v 계열로 둔다).
+		c := GitHubFlow()
+		c.Workflow = workflow
+		return c
 	default:
 		return GitFlow()
 	}

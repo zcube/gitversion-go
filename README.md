@@ -144,6 +144,24 @@ backtracking, 미참여 그룹 구분)을 보장한다.
 > 정리: `next-version` 은 "아직 태그가 없을 때의 임시 baseline"이고, 한 번 그 이상으로 태그하면
 > 다음 사이클을 위해 `next-version` 을 다시 올려 주거나 태그로만 관리하면 된다.
 
+## semantic-release 호환 워크플로
+
+GitVersion 의 GitFlow/GitHubFlow/TrunkBased 외에, **`workflow: SemanticRelease`** 를 지정하면
+[semantic-release](https://github.com/semantic-release/semantic-release) 와 동일한 버전 체계로
+계산한다(Conventional Commits 분석):
+
+- `feat:` → minor, `fix:`/`perf:` → patch, `BREAKING CHANGE:` footer → major (angular 프리셋)
+- 최초 릴리스는 `1.0.0`, 이후 직전 태그에서 `semver.inc`
+- `beta`/`alpha` 브랜치는 프리릴리스 채널(`1.1.0-beta.1` 등)
+- 릴리스할 변경이 없으면 직전 버전 유지
+
+```bash
+gitversion-go --config <(echo "workflow: SemanticRelease")   # 또는 GitVersion.yml 에 명시
+```
+
+이 동작은 **설치된 semantic-release(25.x)로 생성한 골든**(`testdata/semrel_fixtures.tar.gz`)과
+`go test` 차등 검증으로 일치를 보장한다(재생성: `./tests/build_semrel_fixtures.sh`).
+
 ## 미포팅 범위
 
 핵심 엔진·출력·CI 통합·훅·원격·캐시·파일 갱신을 모두 포팅했다. 대화형 TUI(`ratatui`)만
