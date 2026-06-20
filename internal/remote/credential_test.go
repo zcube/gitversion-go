@@ -32,7 +32,7 @@ func TestCredentialHelperFill(t *testing.T) {
 		t.Fatal(err)
 	}
 	gcfg := filepath.Join(dir, "gitconfig")
-	cfg := "[credential]\n\thelper = store --file=" + store + "\n"
+	cfg := "[credential]\n\thelper = store --file=" + filepath.ToSlash(store) + "\n"
 	if err := os.WriteFile(gcfg, []byte(cfg), 0o644); err != nil {
 		t.Fatal(err)
 	}
