@@ -1,13 +1,8 @@
-name: Release
+name: Release Draft
 
 on:
   push:
     tags: ["v*"]
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: "Tag to build (e.g. v0.1.0)"
-        required: true
 
 permissions:
   contents: write
@@ -18,8 +13,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: refs/tags/${{ github.event.inputs.tag || github.ref_name }}
-          fetch-depth: 0 # 전체 히스토리/태그 필요(자기 버전 계산 dogfooding).
+          fetch-depth: 0
 
       - uses: actions/setup-go@v5
         with:
@@ -27,7 +21,6 @@ jobs:
           cache: true
 
       # dogfooding: 빌드한 gitversion-go 로 자신의 버전을 계산해 로그로 확인한다.
-      # 릴리즈 버전 자체는 태그가 단일 소스이며 GoReleaser 가 주입한다.
       - name: Compute version with gitversion-go (dogfood)
         run: |
           go build -o /tmp/gitversion-go ./cmd/gitversion-go
